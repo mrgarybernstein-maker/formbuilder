@@ -721,6 +721,182 @@ function buildAddressAutoField(def,container,focusChain,optionSets,register){
   });
 }
 
+/* ── Address with postal code (self-contained) ── */
+function buildAddressWithPostalField(def,container,focusChain,optionSets,register){
+  /* Row 1: street number + street name with autocomplete */
+  const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
+
+  const numInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',
+    autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',
+    style:'width:88px;flex-shrink:0;'
+  });
+
+  const stWrap=document.createElement('div'); stWrap.className='addr-wrap'; stWrap.style.flex='1';
+  const stInp=makeInput('seg',{
+    type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',
+    spellcheck:'false',placeholder:'Street name','aria-label':'Street name',
+    style:'width:100%;text-align:left;padding:10px 12px;font-size:16px;'
+  });
+  const suggBox=document.createElement('div'); suggBox.className='addr-suggestions';
+  stWrap.appendChild(stInp); stWrap.appendChild(suggBox);
+  row1.appendChild(numInp); row1.appendChild(stWrap);
+
+  /* Row 2: unit + postal code */
+  const row2=document.createElement('div'); row2.className='field-row'; row2.style.marginBottom='0';
+  const unitInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',
+    spellcheck:'false',placeholder:'Apt / Unit','aria-label':'Unit (optional)',
+    style:'width:110px;text-align:left;padding:10px 10px;font-size:15px;'
+  });
+  const hint=document.createElement('span'); hint.className='opt-hint'; hint.textContent='optional';
+
+  /* Postal code — ANA NAN split inline */
+  const postalWrap=document.createElement('div'); postalWrap.style.cssText='display:flex;align-items:center;gap:6px;margin-left:auto;';
+  const postalLabel=document.createElement('span'); postalLabel.style.cssText='font-size:12px;color:var(--t-label);white-space:nowrap;';
+  postalLabel.textContent='Postal:';
+  const pc=[];
+  const pcTypes=['alpha','num','alpha','num','alpha','num'];
+  const pcPlaceholders=['A','N','A','N','A','N'];
+  pcTypes.forEach((t,i)=>{
+    const inp=makeInput('seg',{
+      type:'text',
+      inputmode:t==='alpha'?'text':'numeric',
+      maxlength:'1',
+      placeholder:pcPlaceholders[i],
+      autocomplete:'off',autocorrect:'off',spellcheck:'false',
+      style:'width:36px;font-size:14px;',
+      ...(t==='alpha'?{autocapitalize:'characters'}:{})
+    });
+    pc.push(inp);
+    if(i===3){ const sp=document.createElement('span'); sp.className='sep-space'; postalWrap.appendChild(sp); }
+    postalWrap.appendChild(inp);
+  });
+  postalWrap.insertBefore(postalLabel, postalWrap.firstChild);
+
+  row2.appendChild(unitInp); row2.appendChild(hint); row2.appendChild(postalWrap);
+
+  container.appendChild(row1); container.appendChild(row2);
+  focusChain.push(numInp, stInp, unitInp, ...pc);
+
+  /* Wire postal segments */
+  pc.forEach((el,i)=>{
+    const isAlpha=pcTypes[i]==='alpha';
+    const next=pc[i+1]||null; const prev=pc[i-1]||unitInp;
+    el.addEventListener('input',()=>{
+      let v=el.value;
+      if(isAlpha) v=v.replace(/[^a-zA-Z]/g,'').toUpperCase();
+      else v=v.replace(/\D/g,'');
+      el.value=v; clearErr(el);
+      if(v.length===1&&next) next.focus();
+    });
+    el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&el.value==='') prev.focus(); });
+  });
+
+  /* Google Places autocomplete */
+  let autocompleteService=null, sessionToken=null;
+  let currentSuggestions=[], activeIdx=-1;
+
+  function initAC(){
+    if(!_googlePlacesReady||!window.google) return;
+    autocompleteService=new google.maps.places.AutocompleteService();
+    sessionToken=new google.maps.places.AutocompleteSessionToken();
+  }
+  if(_googlePlacesReady) initAC();
+  else { const iv=setInterval(()=>{ if(_googlePlacesReady){ initAC(); clearInterval(iv); } },200); }
+
+  function showSugg(predictions){
+    suggBox.innerHTML=''; currentSuggestions=predictions||[]; activeIdx=-1;
+    if(!currentSuggestions.length){ suggBox.classList.remove('open'); return; }
+    currentSuggestions.forEach((p,i)=>{
+      const item=document.createElement('div'); item.className='addr-suggestion-item';
+      const main=document.createElement('div'); main.className='addr-suggestion-main'; main.textContent=p.structured_formatting.main_text;
+      const sub=document.createElement('div');  sub.className='addr-suggestion-sub';  sub.textContent=p.structured_formatting.secondary_text;
+      item.appendChild(main); item.appendChild(sub);
+      item.addEventListener('mousedown',e=>{ e.preventDefault(); selectSugg(i); });
+      suggBox.appendChild(item);
+    });
+    suggBox.classList.add('open');
+  }
+
+  function selectSugg(idx){
+    const pred=currentSuggestions[idx]; if(!pred) return;
+    suggBox.classList.remove('open');
+    const svc=new google.maps.places.PlacesService(document.createElement('div'));
+    svc.getDetails({placeId:pred.place_id,fields:['address_components'],sessionToken},(place,status)=>{
+      if(status!==google.maps.places.PlacesServiceStatus.OK) return;
+      sessionToken=new google.maps.places.AutocompleteSessionToken();
+      let streetNum='',streetName='',postal='';
+      place.address_components.forEach(c=>{
+        if(c.types.includes('street_number')) streetNum=c.long_name;
+        if(c.types.includes('route'))          streetName=c.long_name;
+        if(c.types.includes('postal_code'))    postal=c.long_name.replace(/\s/g,'');
+      });
+      if(streetNum) numInp.value=streetNum;
+      stInp.value=streetName;
+      /* Fill postal segments */
+      pc.forEach((el,i)=>{ el.value=postal[i]||''; });
+      [numInp,stInp,...pc].forEach(clearErr);
+      /* Also fill city/province in other fields */
+      let city='',province='';
+      place.address_components.forEach(c=>{
+        if(c.types.includes('locality')) city=c.long_name;
+        if(c.types.includes('administrative_area_level_1')) province=c.short_name;
+      });
+      autoFillAddressComponents(city,province,'');
+    });
+  }
+
+  stInp.addEventListener('input',()=>{
+    clearErr(stInp);
+    const q=stInp.value.trim();
+    if(!q||q.length<3||!autocompleteService){ suggBox.classList.remove('open'); return; }
+    autocompleteService.getPlacePredictions({
+      input:(numInp.value.trim()+' '+q).trim(),
+      componentRestrictions:{country:'ca'},types:['address'],sessionToken
+    },(predictions,status)=>{
+      if(status===google.maps.places.PlacesServiceStatus.OK) showSugg(predictions);
+      else suggBox.classList.remove('open');
+    });
+  });
+  stInp.addEventListener('keydown',e=>{
+    const items=suggBox.querySelectorAll('.addr-suggestion-item');
+    if(e.key==='ArrowDown'){e.preventDefault();activeIdx=Math.min(activeIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeIdx=Math.max(activeIdx-1,0);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();selectSugg(activeIdx);}
+    else if(e.key==='Escape'){suggBox.classList.remove('open');}
+    else if(e.key==='Backspace'&&stInp.value==='') numInp.focus();
+  });
+  stInp.addEventListener('blur',()=>setTimeout(()=>suggBox.classList.remove('open'),200));
+
+  numInp.addEventListener('input',()=>{ numInp.value=numInp.value.replace(/\D/g,''); clearErr(numInp); });
+  numInp.addEventListener('keydown',e=>{ if((e.key==='Tab'||e.key==='Enter')&&numInp.value){e.preventDefault();stInp.focus();} });
+  unitInp.addEventListener('input',()=>{ unitInp.value=unitInp.value.replace(/[^0-9]/g,''); clearErr(unitInp); });
+  unitInp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&unitInp.value==='') stInp.focus(); });
+
+  function getPostal(){ return pc.map(el=>el.value.toUpperCase()).join('').replace(/^(.{3})(.{3})$/,'$1 $2'); }
+  function getValue(){ return `${numInp.value}|${stInp.value.trim()}|${unitInp.value.trim()}|${getPostal()}`; }
+  function setValue(val){
+    const p=val.split('|');
+    numInp.value=p[0]||''; stInp.value=p[1]||''; unitInp.value=p[2]||'';
+    const postal=(p[3]||'').replace(/\s/g,'');
+    pc.forEach((el,i)=>{ el.value=postal[i]||''; });
+    [numInp,stInp,unitInp,...pc].forEach(clearErr);
+  }
+  const displayVal=()=>[numInp.value,stInp.value.trim(),unitInp.value.trim(),getPostal()].filter(Boolean).join(' ');
+
+  register(def.id,{
+    elements:[numInp,stInp,unitInp,...pc], getValue, setValue,
+    clearErrors:()=>[numInp,stInp,unitInp,...pc].forEach(clearErr),
+    validate:()=>{
+      if(!numInp.value.trim()) return {el:numInp,msg:'Street number is required'};
+      if(!stInp.value.trim())  return {el:stInp, msg:'Street name is required'};
+      return null;
+    },
+    storeKey:'reg_'+def.id, populateFn:setValue, displayValue:displayVal
+  });
+}
+
 /* Fill city, province, postal from Google result into matching fields */
 function autoFillAddressComponents(city, province, postal){
   if(!window._fieldRegistry||!window._formDef) return;
@@ -890,6 +1066,83 @@ function applyTheme(t){
 /* ============================================================
    MAIN
    ============================================================ */
+/* ── Submission summary ── */
+function showSubmissionSummary(fields, fieldRegistry, parts){
+  /* Hide the form fields and button */
+  const formFields = document.getElementById('form-fields');
+  const submitBtn  = document.getElementById('submit-btn');
+  const msgEl      = document.getElementById('msg');
+  formFields.style.display='none';
+  submitBtn.style.display='none';
+  msgEl.style.display='none';
+
+  /* Build summary card */
+  const summary = document.createElement('div');
+  summary.id = 'submission-summary';
+  summary.style.cssText='animation:fadeIn 0.3s ease';
+
+  /* Success header */
+  const header = document.createElement('div');
+  header.style.cssText='text-align:center;margin-bottom:1.5rem;';
+  header.innerHTML=`
+    <div style="font-size:48px;margin-bottom:0.5rem">✅</div>
+    <div style="font-size:20px;font-weight:700;color:var(--t-title)">Submitted successfully</div>
+    <div style="font-size:14px;color:var(--t-subtitle);margin-top:4px">${new Date().toLocaleString()}</div>`;
+  summary.appendChild(header);
+
+  /* Divider */
+  const div1=document.createElement('hr'); div1.className='divider'; summary.appendChild(div1);
+
+  /* Field-by-field summary */
+  fields.forEach(def=>{
+    const reg=fieldRegistry[def.id]; if(!reg) return;
+    const val=(reg.displayValue?reg.displayValue():reg.getValue())||'—';
+    if(!val||val==='—') return;
+
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;';
+    const lbl=document.createElement('div');
+    lbl.style.cssText='font-size:12px;font-weight:600;color:var(--t-label);min-width:140px;flex-shrink:0;padding-top:2px;text-transform:uppercase;letter-spacing:0.04em;';
+    lbl.textContent=def.label;
+    const val2=document.createElement('div');
+    val2.style.cssText='font-size:15px;font-weight:500;color:var(--t-title);flex:1;word-break:break-word;';
+    /* Format checkbox/radio values nicely */
+    if(def.type==='checkbox'||def.type==='radio'){
+      const selected=val.split(',').map(v=>{
+        const opt=(def.options||[]).find(o=>o.value===v);
+        return opt?opt.label:v;
+      }).join(', ');
+      val2.textContent=selected||'—';
+    } else {
+      val2.textContent=val;
+    }
+    row.appendChild(lbl); row.appendChild(val2);
+    summary.appendChild(row);
+  });
+
+  /* New submission button */
+  const newBtn=document.createElement('button');
+  newBtn.className='btn';
+  newBtn.style.marginTop='1.5rem';
+  newBtn.textContent='Submit another response';
+  newBtn.addEventListener('click',()=>{
+    summary.remove();
+    formFields.style.display='';
+    submitBtn.style.display='';
+    msgEl.style.display='';
+    if(focusChain&&focusChain[0]) focusChain[0].focus();
+  });
+  summary.appendChild(newBtn);
+
+  /* Insert after form fields */
+  formFields.parentNode.insertBefore(summary, submitBtn);
+}
+
+/* Fade in animation */
+const _style=document.createElement('style');
+_style.textContent='@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+document.head.appendChild(_style);
+
 async function init(){
   try{ const res=await fetch('theme.json'); if(res.ok) applyTheme(await res.json()); }catch(e){}
 
@@ -960,7 +1213,8 @@ async function init(){
       case 'free-full':     buildFullField(...args,false);   break;
       case 'email':         buildEmailField(...args);        break;
       case 'split':         buildSplitField(...args);        break;
-      case 'address':       buildAddressAutoField(...args);  break;
+      case 'address':            buildAddressAutoField(...args);      break;
+      case 'address-with-postal':  buildAddressWithPostalField(...args); break;
       case 'address-manual': buildAddressField(...args);      break;
       case 'city-province': buildCityProvinceField(...args); break;
       case 'dropdown':      buildDropdownField(...args);     break;

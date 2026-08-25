@@ -304,6 +304,7 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
         <option value="email">Email address (@ keyboard)</option>
         <option value="split">Segmented — driven by a pattern</option>
         <option value="address">Address (number + street + unit)</option>
+        <option value="address-with-postal">Address + postal code (all-in-one)</option>
         <option value="city-province">City + Province dropdown</option>
         <option value="radio">Radio buttons — pick one</option>
         <option value="checkbox">Checkboxes — pick many</option>
@@ -351,8 +352,8 @@ const PROVINCES = [
   {value:'YT',label:'YT – Yukon'}
 ];
 
-const TYPE_ICONS  = {'alpha-full':'🔤','free-full':'✏️','email':'📧','split':'🔢','address':'🏠','city-province':'🏙️','radio':'🔘','checkbox':'☑️','dropdown':'▾'};
-const TYPE_LABELS = {'alpha-full':'Letters only','free-full':'Free text','email':'Email address','split':'Segmented','address':'Address','city-province':'City + Province','radio':'Radio','checkbox':'Checkboxes','dropdown':'Dropdown'};
+const TYPE_ICONS  = {'alpha-full':'🔤','free-full':'✏️','email':'📧','split':'🔢','address':'🏠','address-with-postal':'🏠📮','city-province':'🏙️','radio':'🔘','checkbox':'☑️','dropdown':'▾'};
+const TYPE_LABELS = {'alpha-full':'Letters only','free-full':'Free text','email':'Email address','split':'Segmented','address':'Address','address-with-postal':'Address + postal code','city-province':'City + Province','radio':'Radio','checkbox':'Checkboxes','dropdown':'Dropdown'};
 
 /* ── Tabs ── */
 document.querySelectorAll('.tab').forEach(tab => {
@@ -888,6 +889,7 @@ const FIELD_SUGGESTIONS = [
   { keys:['first name','given name','prénom'],  type:'alpha-full', pattern:'' },
   { keys:['last name','surname','family name','nom'], type:'alpha-full', pattern:'' },
   { keys:['full name','name'],                  type:'alpha-full', pattern:'' },
+  { keys:['address with postal','full address'], type:'address-with-postal', pattern:'' },
   { keys:['address','street'],                  type:'address',    pattern:'' }, /* autocomplete */
   { keys:['city','province','ville'],           type:'city-province', pattern:'' },
 ];
