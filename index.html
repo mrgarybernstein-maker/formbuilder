@@ -930,19 +930,15 @@ function buildBigAddressField(def,container,focusChain,optionSets,register){
 
   /* ── Row 2: apt/unit ── */
   const row2=document.createElement('div'); row2.className='field-row'; row2.style.marginBottom='8px';
-  const {wrap:unitWrap,update:unitUpdate}=makeFloatWrap(
-    makeInput('seg-full',{type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',spellcheck:'false','aria-label':'Apt / Unit'}),
-    'Apt / Unit (optional)'
-  );
+  const unitInpEl=makeInput('seg-full',{type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',spellcheck:'false','aria-label':'Apt / Unit'});
+  const {wrap:unitWrap,update:unitUpdate}=makeFloatWrap(unitInpEl,'Apt / Unit (optional)');
   const unitInp=unitWrap.querySelector('input');
   row2.appendChild(unitWrap);
 
   /* ── Row 3: city + province ── */
   const row3=document.createElement('div'); row3.className='field-row-2col'; row3.style.marginBottom='8px';
-  const {wrap:cityWrap,update:cityUpdate}=makeFloatWrap(
-    makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City'}),
-    'City'
-  );
+  const cityInpEl=makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City'});
+  const {wrap:cityWrap,update:cityUpdate}=makeFloatWrap(cityInpEl,'City');
   const cityInp=cityWrap.querySelector('input');
 
   const provSel=makeSelect('seg-select',PROVINCES,'');
@@ -951,10 +947,12 @@ function buildBigAddressField(def,container,focusChain,optionSets,register){
   row3.appendChild(cityWrap); row3.appendChild(provWrap);
 
   /* ── Row 4: postal code ── */
-  const row4=document.createElement('div'); row4.className='field-row'; row4.style.marginBottom='0';
+  const row4=document.createElement('div');
+  row4.style.cssText='display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:0;';
   const postalLbl=document.createElement('span');
-  postalLbl.style.cssText='font-size:13px;font-weight:500;color:var(--t-label);white-space:nowrap;margin-right:6px;';
-  postalLbl.textContent='Postal code:';
+  postalLbl.style.cssText='font-size:12px;font-weight:500;color:var(--t-label);white-space:nowrap;margin-right:4px;';
+  postalLbl.textContent='Postal:';
+  row4.appendChild(postalLbl);
   const pc=[];
   const pcTypes=['alpha','num','alpha','num','alpha','num'];
   pcTypes.forEach((t,i)=>{
@@ -964,14 +962,17 @@ function buildBigAddressField(def,container,focusChain,optionSets,register){
       maxlength:'1',
       placeholder:t==='alpha'?'A':'N',
       autocomplete:'off',autocorrect:'off',spellcheck:'false',
-      style:'width:38px;font-size:14px;',
+      style:'width:40px;height:46px;font-size:15px;flex-shrink:0;',
       ...(t==='alpha'?{autocapitalize:'characters'}:{})
     });
     pc.push(inp);
-    if(i===2){ const sp=document.createElement('span'); sp.className='sep-space'; row4.appendChild(sp); }
+    if(i===2){
+      const sp=document.createElement('span');
+      sp.style.cssText='width:8px;flex-shrink:0;';
+      row4.appendChild(sp);
+    }
+    row4.appendChild(inp);
   });
-  row4.appendChild(postalLbl);
-  pc.forEach((el,i)=>{ if(i===3){const sp=document.createElement('span');sp.className='sep-space';row4.appendChild(sp);} row4.appendChild(el); });
 
   /* Append all rows */
   container.appendChild(row1);
@@ -1046,10 +1047,16 @@ function buildBigAddressField(def,container,focusChain,optionSets,register){
       });
       if(streetNum) numInp.value=streetNum;
       stInp.value=streetName;
-      cityInp.value=city; cityUpdate();
-      provSel.value=province; provUpdate();
-      pc.forEach((el,i)=>{ el.value=postal[i]||''; });
-      [numInp,stInp,cityInp,provSel,...pc].forEach(clearErr);
+      cityInp.value=city; cityUpdate(); clearErr(cityInp);
+      provSel.value=province; provUpdate(); clearErr(provSel);
+      const postalClean=postal.replace(/\s/g,'');
+      pc.forEach((el,i)=>{ el.value=postalClean[i]||''; clearErr(el); });
+      clearErr(numInp); clearErr(stInp);
+      /* Trigger has-value on floating labels */
+      [cityInp,provSel].forEach(el=>{
+        const wrap=el.closest('.fl-wrap');
+        if(wrap) wrap.classList.toggle('has-value', el.value!=='');
+      });
     });
   }
 
