@@ -897,6 +897,216 @@ function buildAddressWithPostalField(def,container,focusChain,optionSets,registe
   });
 }
 
+/* ── Big Address — all components in one grouped block ── */
+function buildBigAddressField(def,container,focusChain,optionSets,register){
+  const PROVINCES=[
+    {value:'AB',label:'AB – Alberta'},{value:'BC',label:'BC – British Columbia'},
+    {value:'MB',label:'MB – Manitoba'},{value:'NB',label:'NB – New Brunswick'},
+    {value:'NL',label:'NL – Newfoundland & Labrador'},{value:'NS',label:'NS – Nova Scotia'},
+    {value:'NT',label:'NT – Northwest Territories'},{value:'NU',label:'NU – Nunavut'},
+    {value:'ON',label:'ON – Ontario'},{value:'PE',label:'PE – Prince Edward Island'},
+    {value:'QC',label:'QC – Québec'},{value:'SK',label:'SK – Saskatchewan'},
+    {value:'YT',label:'YT – Yukon'}
+  ];
+
+  /* ── Row 1: street number + street name (searchable) ── */
+  const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
+
+  const numInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',
+    autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',
+    style:'width:88px;flex-shrink:0;'
+  });
+
+  const stWrap=document.createElement('div'); stWrap.className='addr-wrap'; stWrap.style.flex='1';
+  const stInp=makeInput('seg',{
+    type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',
+    spellcheck:'false',placeholder:'Street name','aria-label':'Street name',
+    style:'width:100%;text-align:left;padding:10px 12px;font-size:16px;'
+  });
+  const suggBox=document.createElement('div'); suggBox.className='addr-suggestions';
+  stWrap.appendChild(stInp); stWrap.appendChild(suggBox);
+  row1.appendChild(numInp); row1.appendChild(stWrap);
+
+  /* ── Row 2: apt/unit ── */
+  const row2=document.createElement('div'); row2.className='field-row'; row2.style.marginBottom='8px';
+  const {wrap:unitWrap,update:unitUpdate}=makeFloatWrap(
+    makeInput('seg-full',{type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',spellcheck:'false','aria-label':'Apt / Unit'}),
+    'Apt / Unit (optional)'
+  );
+  const unitInp=unitWrap.querySelector('input');
+  row2.appendChild(unitWrap);
+
+  /* ── Row 3: city + province ── */
+  const row3=document.createElement('div'); row3.className='field-row-2col'; row3.style.marginBottom='8px';
+  const {wrap:cityWrap,update:cityUpdate}=makeFloatWrap(
+    makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City'}),
+    'City'
+  );
+  const cityInp=cityWrap.querySelector('input');
+
+  const provSel=makeSelect('seg-select',PROVINCES,'');
+  provSel.style.width='100%';
+  const {wrap:provWrap,update:provUpdate}=makeFloatWrap(provSel,'Province');
+  row3.appendChild(cityWrap); row3.appendChild(provWrap);
+
+  /* ── Row 4: postal code ── */
+  const row4=document.createElement('div'); row4.className='field-row'; row4.style.marginBottom='0';
+  const postalLbl=document.createElement('span');
+  postalLbl.style.cssText='font-size:13px;font-weight:500;color:var(--t-label);white-space:nowrap;margin-right:6px;';
+  postalLbl.textContent='Postal code:';
+  const pc=[];
+  const pcTypes=['alpha','num','alpha','num','alpha','num'];
+  pcTypes.forEach((t,i)=>{
+    const inp=makeInput('seg',{
+      type:'text',
+      inputmode:t==='alpha'?'text':'numeric',
+      maxlength:'1',
+      placeholder:t==='alpha'?'A':'N',
+      autocomplete:'off',autocorrect:'off',spellcheck:'false',
+      style:'width:38px;font-size:14px;',
+      ...(t==='alpha'?{autocapitalize:'characters'}:{})
+    });
+    pc.push(inp);
+    if(i===2){ const sp=document.createElement('span'); sp.className='sep-space'; row4.appendChild(sp); }
+  });
+  row4.appendChild(postalLbl);
+  pc.forEach((el,i)=>{ if(i===3){const sp=document.createElement('span');sp.className='sep-space';row4.appendChild(sp);} row4.appendChild(el); });
+
+  /* Append all rows */
+  container.appendChild(row1);
+  container.appendChild(row2);
+  container.appendChild(row3);
+  container.appendChild(row4);
+  focusChain.push(numInp,stInp,unitInp,cityInp,provSel,...pc);
+
+  /* ── Wire postal segments ── */
+  pc.forEach((el,i)=>{
+    const isAlpha=pcTypes[i]==='alpha';
+    const next=pc[i+1]||null; const prev=pc[i-1]||provSel;
+    el.addEventListener('input',()=>{
+      let v=el.value;
+      if(isAlpha) v=v.replace(/[^a-zA-Z]/g,'').toUpperCase();
+      else v=v.replace(/\D/g,'');
+      el.value=v; clearErr(el);
+      if(v.length===1&&next) next.focus();
+    });
+    el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&el.value==='') prev.focus(); });
+  });
+
+  /* ── Wire other fields ── */
+  numInp.addEventListener('input',()=>{ numInp.value=numInp.value.replace(/\D/g,''); clearErr(numInp); });
+  numInp.addEventListener('keydown',e=>{ if((e.key==='Tab'||e.key==='Enter')&&numInp.value){e.preventDefault();stInp.focus();} });
+  stInp.addEventListener('input',()=>clearErr(stInp));
+  stInp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&stInp.value==='') numInp.focus(); });
+  unitInp.addEventListener('input',()=>{ unitInp.value=unitInp.value.replace(/[^0-9]/g,''); clearErr(unitInp); unitUpdate(); });
+  cityInp.addEventListener('input',()=>{ clearErr(cityInp); cityUpdate(); });
+  provSel.addEventListener('change',()=>{ clearErr(provSel); provUpdate(); });
+
+  /* ── Google Places autocomplete ── */
+  let autocompleteService=null, sessionToken=null;
+  let currentSuggestions=[], activeIdx=-1;
+
+  function initAC(){
+    if(!_googlePlacesReady||!window.google) return;
+    autocompleteService=new google.maps.places.AutocompleteService();
+    sessionToken=new google.maps.places.AutocompleteSessionToken();
+  }
+  if(_googlePlacesReady) initAC();
+  else { const iv=setInterval(()=>{ if(_googlePlacesReady){ initAC(); clearInterval(iv); } },200); }
+
+  function showSugg(predictions){
+    suggBox.innerHTML=''; currentSuggestions=predictions||[]; activeIdx=-1;
+    if(!currentSuggestions.length){ suggBox.classList.remove('open'); return; }
+    currentSuggestions.forEach((p,i)=>{
+      const item=document.createElement('div'); item.className='addr-suggestion-item';
+      const main=document.createElement('div'); main.className='addr-suggestion-main'; main.textContent=p.structured_formatting.main_text;
+      const sub=document.createElement('div');  sub.className='addr-suggestion-sub';  sub.textContent=p.structured_formatting.secondary_text;
+      item.appendChild(main); item.appendChild(sub);
+      item.addEventListener('mousedown',e=>{ e.preventDefault(); selectSugg(i); });
+      suggBox.appendChild(item);
+    });
+    suggBox.classList.add('open');
+  }
+
+  function selectSugg(idx){
+    const pred=currentSuggestions[idx]; if(!pred) return;
+    suggBox.classList.remove('open');
+    const svc=new google.maps.places.PlacesService(document.createElement('div'));
+    svc.getDetails({placeId:pred.place_id,fields:['address_components'],sessionToken},(place,status)=>{
+      if(status!==google.maps.places.PlacesServiceStatus.OK) return;
+      sessionToken=new google.maps.places.AutocompleteSessionToken();
+      let streetNum='',streetName='',city='',province='',postal='';
+      place.address_components.forEach(c=>{
+        if(c.types.includes('street_number'))              streetNum =c.long_name;
+        if(c.types.includes('route'))                       streetName=c.long_name;
+        if(c.types.includes('locality'))                    city      =c.long_name;
+        if(c.types.includes('administrative_area_level_1')) province  =c.short_name;
+        if(c.types.includes('postal_code'))                 postal    =c.long_name.replace(/\s/g,'');
+      });
+      if(streetNum) numInp.value=streetNum;
+      stInp.value=streetName;
+      cityInp.value=city; cityUpdate();
+      provSel.value=province; provUpdate();
+      pc.forEach((el,i)=>{ el.value=postal[i]||''; });
+      [numInp,stInp,cityInp,provSel,...pc].forEach(clearErr);
+    });
+  }
+
+  stInp.addEventListener('input',()=>{
+    clearErr(stInp);
+    const q=stInp.value.trim();
+    if(!q||q.length<3||!autocompleteService){ suggBox.classList.remove('open'); return; }
+    autocompleteService.getPlacePredictions({
+      input:(numInp.value.trim()+' '+q).trim(),
+      componentRestrictions:{country:'ca'},types:['address'],sessionToken
+    },(predictions,status)=>{
+      if(status===google.maps.places.PlacesServiceStatus.OK) showSugg(predictions);
+      else suggBox.classList.remove('open');
+    });
+  });
+  stInp.addEventListener('keydown',e=>{
+    const items=suggBox.querySelectorAll('.addr-suggestion-item');
+    if(e.key==='ArrowDown'){e.preventDefault();activeIdx=Math.min(activeIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeIdx=Math.max(activeIdx-1,0);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();selectSugg(activeIdx);}
+    else if(e.key==='Escape'){suggBox.classList.remove('open');}
+    else if(e.key==='Backspace'&&stInp.value==='') numInp.focus();
+  });
+  stInp.addEventListener('blur',()=>setTimeout(()=>suggBox.classList.remove('open'),200));
+
+  /* ── getValue / setValue ── */
+  function getPostal(){ return pc.map(el=>el.value.toUpperCase()).join('').replace(/^(.{3})(.{3})$/,'$1 $2'); }
+  function getValue(){ return `${numInp.value}|${stInp.value.trim()}|${unitInp.value.trim()}|${cityInp.value.trim()}|${provSel.value}|${getPostal()}`; }
+  function setValue(val){
+    const p=val.split('|');
+    numInp.value=p[0]||''; stInp.value=p[1]||''; unitInp.value=p[2]||'';
+    cityInp.value=p[3]||''; cityUpdate();
+    provSel.value=p[4]||''; provUpdate();
+    const postal=(p[5]||'').replace(/\s/g,'');
+    pc.forEach((el,i)=>{ el.value=postal[i]||''; });
+    [numInp,stInp,unitInp,cityInp,provSel,...pc].forEach(clearErr);
+  }
+  const displayVal=()=>{
+    const parts=[numInp.value,stInp.value.trim(),unitInp.value.trim()].filter(Boolean).join(' ');
+    const city=cityInp.value.trim(); const prov=provSel.value; const postal=getPostal();
+    return [parts,[city,prov].filter(Boolean).join(', '),postal].filter(Boolean).join(' — ');
+  };
+
+  register(def.id,{
+    elements:[numInp,stInp,unitInp,cityInp,provSel,...pc], getValue, setValue,
+    clearErrors:()=>[numInp,stInp,unitInp,cityInp,provSel,...pc].forEach(clearErr),
+    validate:()=>{
+      if(!numInp.value.trim()) return {el:numInp, msg:'Street number is required'};
+      if(!stInp.value.trim())  return {el:stInp,  msg:'Street name is required'};
+      if(!cityInp.value.trim())return {el:cityInp, msg:'City is required'};
+      if(!provSel.value)       return {el:provSel, msg:'Please select a province'};
+      return null;
+    },
+    storeKey:'reg_'+def.id, populateFn:setValue, displayValue:displayVal
+  });
+}
+
 /* Fill city, province, postal from Google result into matching fields */
 function autoFillAddressComponents(city, province, postal){
   if(!window._fieldRegistry||!window._formDef) return;
@@ -1215,6 +1425,7 @@ async function init(){
       case 'split':         buildSplitField(...args);        break;
       case 'address':            buildAddressAutoField(...args);      break;
       case 'address-with-postal':  buildAddressWithPostalField(...args); break;
+      case 'big-address':          buildBigAddressField(...args);        break;
       case 'address-manual': buildAddressField(...args);      break;
       case 'city-province': buildCityProvinceField(...args); break;
       case 'dropdown':      buildDropdownField(...args);     break;
