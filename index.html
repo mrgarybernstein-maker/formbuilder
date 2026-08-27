@@ -948,13 +948,17 @@ function buildBigAddressField(def,container,focusChain,optionSets,register){
 
   /* ── Row 4: postal code ── */
   const row4=document.createElement('div');
-  row4.style.cssText='display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:0;';
+  row4.style.cssText='display:flex;align-items:center;gap:3px;margin-bottom:0;flex-wrap:nowrap;';
   const postalLbl=document.createElement('span');
-  postalLbl.style.cssText='font-size:12px;font-weight:500;color:var(--t-label);white-space:nowrap;margin-right:4px;';
+  postalLbl.style.cssText='font-size:12px;font-weight:500;color:var(--t-label);white-space:nowrap;margin-right:6px;flex-shrink:0;';
   postalLbl.textContent='Postal:';
   row4.appendChild(postalLbl);
   const pc=[];
   const pcTypes=['alpha','num','alpha','num','alpha','num'];
+  /* Group 1: ANA, gap, Group 2: NAN */
+  const grp1=document.createElement('div'); grp1.style.cssText='display:flex;gap:3px;flex-shrink:0;';
+  const grp2=document.createElement('div'); grp2.style.cssText='display:flex;gap:3px;flex-shrink:0;';
+  const grpSep=document.createElement('span'); grpSep.style.cssText='width:8px;flex-shrink:0;';
   pcTypes.forEach((t,i)=>{
     const inp=makeInput('seg',{
       type:'text',
@@ -962,17 +966,15 @@ function buildBigAddressField(def,container,focusChain,optionSets,register){
       maxlength:'1',
       placeholder:t==='alpha'?'A':'N',
       autocomplete:'off',autocorrect:'off',spellcheck:'false',
-      style:'width:40px;height:46px;font-size:15px;flex-shrink:0;',
+      style:'width:36px;height:44px;font-size:14px;flex-shrink:0;padding:0;',
       ...(t==='alpha'?{autocapitalize:'characters'}:{})
     });
     pc.push(inp);
-    if(i===2){
-      const sp=document.createElement('span');
-      sp.style.cssText='width:8px;flex-shrink:0;';
-      row4.appendChild(sp);
-    }
-    row4.appendChild(inp);
+    if(i<3) grp1.appendChild(inp); else grp2.appendChild(inp);
   });
+  row4.appendChild(grp1);
+  row4.appendChild(grpSep);
+  row4.appendChild(grp2);
 
   /* Append all rows */
   container.appendChild(row1);
