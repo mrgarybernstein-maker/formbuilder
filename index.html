@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading…</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --t-bg:           #f5f5f3;
+      --t-card:         #ffffff;
+      --t-card-width:   480px;
+      --t-radius:       16px;
+      --t-font:         -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --t-font-size:    17px;
+      --t-title:        #1a1a1a;
+      --t-subtitle:     #888888;
+      --t-label:        #555555;
+      --t-field-bg:     #fafafa;
+      --t-field-border: #e0e0e0;
+      --t-field-focus:  #4a90d9;
+      --t-field-error:  #e05252;
+      --t-btn-bg:       #1a1a1a;
+      --t-btn-text:     #ffffff;
+    }
+
+    body {
+      font-family: var(--t-font);
+      background: var(--t-bg); min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .card {
+      background: var(--t-card); border-radius: var(--t-radius); padding: 2rem;
+      width: 100%; max-width: var(--t-card-width);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+    }
+    h1        { font-size: 20px; font-weight: 600; color: var(--t-title); margin-bottom: 0.25rem; }
+    .subtitle { font-size: 14px; color: var(--t-subtitle); margin-bottom: 1.75rem; }
+
+    /* Logo */
+    #form-logo { display:none; margin-bottom:1.25rem; }
+    #form-logo img { height:auto; display:inline-block; }
+    #form-logo.align-left   { text-align:left; }
+    #form-logo.align-center { text-align:center; }
+    #form-logo.align-right  { text-align:right; }
+
+    /* ── Floating label ── */
+    .fl-wrap { position:relative; width:100%; }
+    .fl-label {
+      position:absolute; left:14px; top:50%; transform:translateY(-50%);
+      font-size:15px; color:var(--t-label); pointer-events:none;
+      transition:top 0.18s ease, font-size 0.18s ease, color 0.18s ease;
+      background:transparent; padding:0 2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      max-width:calc(100% - 28px);
+    }
+    .fl-wrap.has-value .fl-label,
+    .fl-wrap:focus-within .fl-label {
+      top:8px; transform:translateY(0); font-size:11px;
+      color:var(--t-field-focus); background:var(--t-card); padding:0 4px; left:10px;
+    }
+    .fl-wrap.has-value .fl-label { color:var(--t-label); }
+
+    /* ── Base inputs ── */
+    .seg, .seg-full, .seg-select {
+      border:1.5px solid var(--t-field-border); border-radius:var(--t-radius);
+      background:var(--t-field-bg); color:var(--t-title);
+      font-size:var(--t-font-size); font-weight:500; height:58px;
+      outline:none; -webkit-appearance:none;
+      transition:border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .seg:focus, .seg-full:focus, .seg-select:focus {
+      border-color:var(--t-field-focus); background:var(--t-card);
+      box-shadow:0 0 0 3px rgba(74,144,217,0.12);
+    }
+    .seg.error, .seg-full.error, .seg-select.error {
+      border-color:var(--t-field-error); box-shadow:0 0 0 3px rgba(224,82,82,0.12);
+    }
+    .seg-full { width:100%; padding:22px 14px 8px; }
+    .seg-full::placeholder { color:transparent; }
+    .seg-select {
+      width:100%; padding:22px 36px 8px 14px; cursor:pointer;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 12px center;
+    }
+    .seg {
+      font-size:18px; font-weight:600; text-align:center; padding:10px 0; min-width:0;
+    }
+    .seg::placeholder { font-weight:400; font-size:13px; color:#bbb; }
+
+    /* ── Radio buttons ── */
+    .radio-group, .checkbox-group { display:flex; flex-direction:column; gap:10px; }
+    .radio-option, .checkbox-option {
+      display:flex; align-items:flex-start; gap:12px; cursor:pointer;
+      padding:12px 14px; border-radius:var(--t-radius);
+      border:1.5px solid var(--t-field-border);
+      background:var(--t-field-bg);
+      transition:border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .radio-option:hover, .checkbox-option:hover {
+      border-color:var(--t-field-focus); background:var(--t-card);
+    }
+    .radio-option.selected {
+      border-color:var(--t-field-focus);
+      background:var(--t-card);
+    }
+    .checkbox-option.checked {
+      border-color:var(--t-field-focus);
+      background:var(--t-card);
+    }
+    .radio-option.error, .checkbox-option.error {
+      border-color:var(--t-field-error);
+    }
+
+    /* Custom radio circle */
+    .radio-dot {
+      width:20px; height:20px; border-radius:50%; flex-shrink:0; margin-top:1px;
+      border:2px solid var(--t-field-border);
+      background:var(--t-field-bg);
+      display:flex; align-items:center; justify-content:center;
+      transition:border-color 0.15s, background 0.15s;
+    }
+    .radio-option.selected .radio-dot {
+      border-color:var(--t-field-focus);
+      background:var(--t-field-focus);
+    }
+    .radio-dot::after {
+      content:''; width:8px; height:8px; border-radius:50%;
+      background:white; display:none;
+    }
+    .radio-option.selected .radio-dot::after { display:block; }
+
+    /* Custom checkbox square */
+    .check-box {
+      width:20px; height:20px; border-radius:4px; flex-shrink:0; margin-top:1px;
+      border:2px solid var(--t-field-border);
+      background:var(--t-field-bg);
+      display:flex; align-items:center; justify-content:center;
+      transition:border-color 0.15s, background 0.15s;
+    }
+    .checkbox-option.checked .check-box {
+      border-color:var(--t-field-focus);
+      background:var(--t-field-focus);
+    }
+    .check-box::after {
+      content:''; width:5px; height:9px;
+      border:2px solid white; border-top:none; border-left:none;
+      transform:rotate(45deg) translateY(-1px);
+      display:none;
+    }
+    .checkbox-option.checked .check-box::after { display:block; }
+
+    .radio-label, .checkbox-label {
+      font-size:14px; color:var(--t-title); line-height:1.5; user-select:none;
+    }
+    .checkbox-label .optional-tag {
+      font-size:11px; color:#aaa; margin-left:6px; font-weight:400;
+    }
+
+    /* ── Field groups ── */
+    .field-group       { margin-bottom:1.25rem; }
+    .field-group-float { margin-bottom:1.25rem; }
+    .field-label       { font-size:13px; font-weight:500; color:var(--t-label); margin-bottom:8px; letter-spacing:0.02em; }
+
+    /* Layout */
+    .field-row      { display:flex; align-items:center; gap:6px; }
+    .field-row-2col { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .field-row-2col .seg-full,
+    .field-row-2col .seg-select { width:100%; }
+    .sep       { font-size:20px; color:#ccc; font-weight:300; user-select:none; flex-shrink:0; }
+    .sep-space { width:10px; flex-shrink:0; }
+    .opt-hint  { font-size:13px; color:#bbb; padding-left:4px; }
+
+    /* Chips */
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; min-height:0; }
+    .chip  {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 11px; border-radius:99px;
+      border:1.5px solid #e8e8e8; background:#f7f7f5;
+      font-size:12px; font-weight:500; color:#333;
+      cursor:pointer; white-space:nowrap;
+      transition:border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .chip:hover, .chip:active { border-color:var(--t-field-focus); background:#f0f6ff; color:#1a5fa8; }
+    .chip-x { font-size:10px; color:#bbb; cursor:pointer; padding:1px 3px; border-radius:3px; line-height:1; transition:color 0.1s; }
+    .chip-x:hover { color:#e05252; background:#fce8e8; }
+
+    /* Misc */
+    .divider { border:none; border-top:1px solid #f0f0f0; margin:0.25rem 0 1.25rem; }
+    .btn {
+      width:100%; padding:14px; border:none; border-radius:var(--t-radius);
+      background:var(--t-btn-bg); color:var(--t-btn-text);
+      font-size:15px; font-weight:600; cursor:pointer; letter-spacing:0.01em;
+      transition:background 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .btn:active { transform:scale(0.98); }
+    .msg { margin-top:12px; font-size:13px; min-height:20px; text-align:center; border-radius:8px; padding:0; transition:all 0.2s; }
+    .msg.visible { padding:10px 14px; }
+    .msg.err { background:#fef2f2; color:#c0392b; }
+    .msg.ok  { background:#f0faf4; color:#1a7a45; }
+    .load-error { text-align:center; padding:2rem 0; color:#c0392b; font-size:14px; line-height:1.7; }
+    .load-error strong { display:block; font-size:16px; margin-bottom:0.5rem; }
+
+    /* Address autocomplete */
+    .addr-wrap { position:relative; width:100%; }
+    .addr-suggestions {
+      position:absolute; top:100%; left:0; right:0; z-index:100;
+      background:#fff; border:1.5px solid var(--t-field-focus);
+      border-top:none; border-radius:0 0 10px 10px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.12);
+      max-height:220px; overflow-y:auto; display:none;
+    }
+    .addr-suggestions.open { display:block; }
+    .addr-suggestion-item {
+      padding:10px 14px; font-size:14px; color:var(--t-title);
+      cursor:pointer; border-bottom:1px solid #f0f0f0; line-height:1.4;
+    }
+    .addr-suggestion-item:last-child { border-bottom:none; }
+    .addr-suggestion-item:hover, .addr-suggestion-item.active {
+      background:var(--t-field-focus); color:#fff;
+    }
+    .addr-suggestion-main { font-weight:500; }
+    .addr-suggestion-sub  { font-size:12px; opacity:0.8; margin-top:2px; }
+
+    /* Dark mode */
+    @media (prefers-color-scheme: dark) {
+      body  { background:var(--t-bg,#1a1a1a); }
+      .card { background:var(--t-card,#242424); box-shadow:0 1px 3px rgba(0,0,0,0.3),0 8px 24px rgba(0,0,0,0.2); }
+      h1    { color:var(--t-title,#f0f0f0); }
+      .subtitle { color:var(--t-subtitle,#666); }
+      .field-label { color:var(--t-label,#999); }
+      .seg,.seg-full,.seg-select { background:#1e1e1e; border-color:#383838; color:#f0f0f0; }
+      .seg:focus,.seg-full:focus,.seg-select:focus { background:#1e1e1e; }
+      .seg::placeholder { color:#555; }
+      .seg-select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); }
+      .fl-wrap.has-value .fl-label,.fl-wrap:focus-within .fl-label { background:#1e1e1e; }
+      .radio-option,.checkbox-option { background:#1e1e1e; border-color:#383838; }
+      .radio-option:hover,.checkbox-option:hover { background:#242424; }
+      .radio-option.selected,.checkbox-option.checked { background:#1a2d45; }
+      .radio-dot,.check-box { background:#1e1e1e; border-color:#555; }
+      .radio-label,.checkbox-label { color:#f0f0f0; }
+      .sep { color:#444; }
+      .chip { background:#2a2a2a; border-color:#383838; color:#d0d0d0; }
+      .chip:hover,.chip:active { background:#1a2d45; border-color:#4a90d9; color:#7ab8f5; }
+      .chip-x { color:#555; }
+      .btn { filter:brightness(1.15); }
+      .msg.err { background:#2d1515; color:#f08080; }
+      .msg.ok  { background:#0f2318; color:#6fcf97; }
+      .divider { border-color:#2e2e2e; }
+      .opt-hint { color:#555; }
+    }
+  </style>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBfsgzOPsWzLMsC3lMtESAuaU2RUoqLWZs&libraries=places&callback=initGooglePlaces" async defer></script>
+</head>
+<body>
+<div class="card">
+  <div id="form-logo"><img id="form-logo-img" src="" alt="Logo"></div>
+  <h1 id="form-title">Loading…</h1>
+  <p class="subtitle" id="form-subtitle"></p>
+  <div id="form-fields"></div>
+  <button class="btn" id="submit-btn" style="display:none">Submit</button>
+  <p class="msg" id="msg"></p>
+</div>
+
+<script>
+/* ============================================================
+   FORM ENGINE — reads form.json + theme.json
+   Never edit this file. Edit form.json and theme.json only.
+   ============================================================ */
+
+const MONTHS     = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const MONTH_DAYS = {JAN:31,FEB:28,MAR:31,APR:30,MAY:31,JUN:30,JUL:31,AUG:31,SEP:30,OCT:31,NOV:30,DEC:31};
+const MAX_CHIPS  = 6;
+
+function isLeapYear(y){ return (y%4===0&&y%100!==0)||y%400===0; }
+function maxDaysInMonth(mon,yr){ if(!MONTH_DAYS[mon]) return 31; return (mon==='FEB'&&isLeapYear(yr))?29:MONTH_DAYS[mon]; }
+
+/* Storage */
+function loadHistory(key)    { try{return JSON.parse(localStorage.getItem(key)||'[]');}catch(e){return[];} }
+function saveHistory(key,h)  { try{localStorage.setItem(key,JSON.stringify(h));}catch(e){} }
+function addToHistory(key,val){ let h=loadHistory(key).filter(x=>x!==val); h.unshift(val); if(h.length>MAX_CHIPS)h=h.slice(0,MAX_CHIPS); saveHistory(key,h); }
+function removeFromHistory(key,val){ saveHistory(key,loadHistory(key).filter(x=>x!==val)); }
+
+/* Chips */
+function renderChips(containerId,storeKey,populateFn){
+  const el=document.getElementById(containerId); if(!el) return;
+  const h=loadHistory(storeKey); el.innerHTML='';
+  h.forEach(val=>{
+    const chip=document.createElement('span'); chip.className='chip';
+    const label=document.createElement('span'); label.textContent=val;
+    label.addEventListener('click',()=>populateFn(val));
+    const x=document.createElement('span'); x.className='chip-x'; x.textContent='✕'; x.title='Remove';
+    x.addEventListener('click',e=>{ e.stopPropagation(); removeFromHistory(storeKey,val); renderChips(containerId,storeKey,populateFn); });
+    chip.appendChild(label); chip.appendChild(x); el.appendChild(chip);
+  });
+}
+
+/* DOM helpers */
+function makeInput(cls,attrs={}){
+  const el=document.createElement('input'); el.className=cls;
+  Object.entries(attrs).forEach(([k,v])=>{ if(k==='style') el.style.cssText=v; else el.setAttribute(k,v); });
+  return el;
+}
+function makeSelect(cls,options,placeholder){
+  const el=document.createElement('select'); el.className=cls;
+  const def=document.createElement('option'); def.value=''; def.textContent=placeholder||'';
+  el.appendChild(def);
+  options.forEach(o=>{ const opt=document.createElement('option'); opt.value=o.value; opt.textContent=o.label; el.appendChild(opt); });
+  return el;
+}
+function makeFloatWrap(inp,labelText){
+  const wrap=document.createElement('div'); wrap.className='fl-wrap';
+  const lbl=document.createElement('label'); lbl.className='fl-label'; lbl.textContent=labelText;
+  wrap.appendChild(inp); wrap.appendChild(lbl);
+  function update(){ const hasVal=(inp.tagName==='SELECT')?inp.value!=='':inp.value.trim()!==''; wrap.classList.toggle('has-value',hasVal); }
+  inp.addEventListener('input',update); inp.addEventListener('change',update); update();
+  return {wrap,update};
+}
+
+/* Helpers */
+function clearErr(el)    { if(el&&el.classList) el.classList.remove('error'); }
+
+function showFieldError(fieldId, msg){
+  let errEl = document.getElementById('ferr-'+fieldId);
+  if(!errEl){
+    errEl = document.createElement('p');
+    errEl.id = 'ferr-'+fieldId;
+    errEl.style.cssText = 'font-size:12px;color:#c0392b;margin-top:5px;line-height:1.4;display:none';
+    /* Insert before chips div so it appears directly under the field */
+    const chipsDiv = document.getElementById('chips-'+fieldId);
+    if(chipsDiv && chipsDiv.parentNode){
+      chipsDiv.parentNode.insertBefore(errEl, chipsDiv);
+    }
+  }
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+}
+
+function clearFieldError(fieldId){
+  const errEl = document.getElementById('ferr-'+fieldId);
+  if(errEl){ errEl.textContent=''; errEl.style.display='none'; }
+}
+function showMsg(t,type) { const m=document.getElementById('msg'); m.textContent=t; m.className='msg visible '+type; }
+function clearMsg()      { const m=document.getElementById('msg'); m.textContent=''; m.className='msg'; }
+
+/* Parse pattern */
+function parsePattern(pattern){
+  const tokens=[]; let i=0;
+  while(i<pattern.length){
+    const ch=pattern[i];
+    if(ch==='-'||ch===' '||ch==='.'){ tokens.push({kind:'sep',char:ch}); i++; continue; }
+    let run=''; while(i<pattern.length&&pattern[i]===ch){ run+=ch; i++; }
+    const isMonth=(ch==='M'&&run.length===3); const isAlpha=ch==='A'||isMonth; const isNum=ch==='N';
+    tokens.push({kind:'seg',chars:run.length,isAlpha,isNum,isMonth,placeholder:isMonth?'MMM':run,width:Math.max(46,run.length*22+16)});
+  }
+  return tokens;
+}
+
+/* ============================================================
+   FIELD BUILDERS
+   ============================================================ */
+
+function buildSplitField(def,container,focusChain,optionSets,register){
+  const tokens=parsePattern(def.pattern);
+  const row=document.createElement('div'); row.className='field-row';
+  const inputs=[];
+  tokens.forEach(tok=>{
+    if(tok.kind==='sep'){ const s=document.createElement('span'); s.className=(tok.char==='-'||tok.char==='.')?'sep':'sep-space'; if(tok.char==='-'||tok.char==='.') s.textContent=tok.char; row.appendChild(s); return; }
+    const inp=makeInput('seg',{ type:'text', inputmode:tok.isNum?'numeric':'text', maxlength:tok.chars, placeholder:tok.placeholder, autocomplete:'off', autocorrect:'off', spellcheck:'false', style:`width:${tok.width}px;${(tok.isAlpha||tok.isMonth)?'text-transform:uppercase;':''}` });
+    if(tok.isAlpha||tok.isMonth) inp.setAttribute('autocapitalize','characters');
+    inputs.push({el:inp,tok}); row.appendChild(inp);
+  });
+  container.appendChild(row);
+  inputs.forEach(({el,tok},idx)=>{
+    const nextEl=inputs[idx+1]?.el||null; const prevEl=inputs[idx-1]?.el||null;
+    el.addEventListener('input',()=>{ let v=el.value; if((tok.isAlpha||tok.isMonth)&&!tok.isNum) v=v.replace(/[^a-zA-Z]/g,'').toUpperCase(); if(tok.isNum&&!tok.isAlpha) v=v.replace(/\D/g,''); el.value=v; clearErr(el); if(v.length===tok.chars&&nextEl) nextEl.focus(); });
+    el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&el.value===''&&prevEl){e.preventDefault();prevEl.focus();} });
+    if(tok.isMonth){
+      el.addEventListener('blur',()=>{
+        const v=el.value.toUpperCase();
+        if(v.length===3&&!MONTHS.includes(v)){el.classList.add('error');showMsg('Invalid month — use JAN, FEB … DEC','err');}
+      });
+      el.addEventListener('focus',()=>{ clearErr(el); clearMsg(); clearFieldError(def.id); });
+    }
+    /* Year blur — validate full date inline */
+    if(tok.isNum && idx === inputs.length-1){
+      el.addEventListener('blur',()=>{
+        const monthSeg2=inputs.find(({tok:t})=>t.isMonth);
+        const numSegs2=inputs.filter(({tok:t})=>t.isNum);
+        if(!monthSeg2||numSegs2.length<2) return;
+        const mon=monthSeg2.el.value.toUpperCase();
+        const day=parseInt(numSegs2[0].el.value);
+        const yr=parseInt(el.value);
+        if(!MONTHS.includes(mon)||isNaN(day)||isNaN(yr)||yr<1000) return;
+        /* Days in month check */
+        const max=maxDaysInMonth(mon,yr);
+        if(day<1||day>max){
+          numSegs2[0].el.classList.add('error');
+          showFieldError(def.id, `${mon} ${yr} only has ${max} days`);
+          return;
+        }
+        /* Future date check for DOB */
+        const lbl=(def.label||'').toLowerCase();
+        const isDOB=lbl.includes('birth')||lbl.includes('dob')||lbl.includes('born')||lbl.includes('birthday');
+        if(isDOB){
+          const entered=new Date(yr, MONTHS.indexOf(mon), day);
+          const today=new Date(); today.setHours(0,0,0,0);
+          if(entered>today){
+            el.classList.add('error');
+            showFieldError(def.id,'Date of birth cannot be in the future');
+            return;
+          }
+          const minYear=today.getFullYear()-130;
+          if(yr<minYear){
+            el.classList.add('error');
+            showFieldError(def.id,`Please check the year — ${yr} seems too far back`);
+            return;
+          }
+        }
+        clearFieldError(def.id);
+
+        /* Auto-calculate age if an age field exists */
+        if(window._autoFillAge) window._autoFillAge(mon, day, yr);
+      });
+      el.addEventListener('focus',()=>{ clearErr(el); clearFieldError(def.id); });
+    }
+    focusChain.push(el);
+  });
+  function getValue(){ let out='',si=0; tokens.forEach(tok=>{ if(tok.kind==='sep'){out+=tok.char;}else{out+=(inputs[si++]?.el.value||'');} }); return out; }
+  function setValue(val){ const clean=val.replace(/[\ \-\.]/g,''); let pos=0; inputs.forEach(({el,tok})=>{ el.value=clean.slice(pos,pos+tok.chars); clearErr(el); pos+=tok.chars; }); }
+  function validate(){
+    for(let i=0;i<inputs.length;i++){
+      const {el,tok}=inputs[i]; const v=el.value.toUpperCase();
+      if(tok.isMonth){ if(!/^[A-Z]{3}$/.test(v)) return {el,msg:`${def.label}: month must be 3 letters (e.g. JAN)`}; if(!MONTHS.includes(v)) return {el,msg:`${def.label}: invalid month — use JAN, FEB … DEC`}; }
+      else if(tok.isAlpha){ if(v.length!==tok.chars||!/^[A-Z]+$/.test(v)) return {el,msg:`${def.label}: ${tok.chars} letter${tok.chars>1?'s':''} required here`}; }
+      else if(tok.isNum){ if(v.length!==tok.chars||!/^\d+$/.test(v)) return {el,msg:`${def.label}: ${tok.chars} digit${tok.chars>1?'s':''} required here`}; }
+    }
+    const monthSeg=inputs.find(({tok})=>tok.isMonth); const numSegs=inputs.filter(({tok})=>tok.isNum);
+    if(monthSeg&&numSegs.length>=2){
+      const mon=monthSeg.el.value.toUpperCase();
+      const day=parseInt(numSegs[0].el.value);
+      const yr=parseInt(numSegs[numSegs.length-1].el.value);
+      if(MONTHS.includes(mon)&&!isNaN(day)&&!isNaN(yr)&&yr>1000){
+        /* Check days in month */
+        const max=maxDaysInMonth(mon,yr);
+        if(day<1||day>max) return {el:numSegs[0].el,msg:`${mon} ${yr} only has ${max} days`};
+        /* Check date is not in the future — only for fields labelled as date of birth */
+        const lbl=(def.label||'').toLowerCase();
+        const isDOB=lbl.includes('birth')||lbl.includes('dob')||lbl.includes('born')||lbl.includes('birthday');
+        if(isDOB){
+          const entered=new Date(yr, MONTHS.indexOf(mon), day);
+          const today=new Date(); today.setHours(0,0,0,0);
+          if(entered>today) return {el:numSegs[numSegs.length-1].el,msg:`Date of birth cannot be in the future`};
+          /* Also check for unreasonably old dates */
+          const minYear=today.getFullYear()-130;
+          if(yr<minYear) return {el:numSegs[numSegs.length-1].el,msg:`Please check the year — ${yr} seems too far back`};
+        }
+      }
+    }
+    return null;
+  }
+  register(def.id,{ elements:inputs.map(({el})=>el), getValue, setValue, clearErrors:()=>inputs.forEach(({el})=>clearErr(el)), validate, storeKey:'reg_'+def.id, populateFn:setValue });
+}
+
+function buildFullField(def,container,focusChain,optionSets,register,alphaOnly){
+  const inp=makeInput('seg-full',{ type:'text', inputmode:'text', autocapitalize:'words', autocorrect:'off', spellcheck:'false', 'aria-label':def.label });
+  const {wrap,update}=makeFloatWrap(inp,def.label);
+  container.appendChild(wrap); focusChain.push(inp);
+  inp.addEventListener('input',()=>{ if(alphaOnly) inp.value=inp.value.replace(/[^a-zA-Z\s'\-]/g,''); clearErr(inp); });
+  register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);update();}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v) return {el:inp,msg:`${def.label} is required`}; if(alphaOnly&&!/^[a-zA-Z\s'\-]+$/.test(v)) return {el:inp,msg:`${def.label} must contain letters only`}; return null; }, storeKey:'reg_'+def.id, populateFn:v=>{inp.value=v;clearErr(inp);update();} });
+}
+
+function buildEmailField(def,container,focusChain,optionSets,register){
+  const inp=makeInput('seg-full',{
+    type:'email',
+    inputmode:'email',
+    autocapitalize:'off',
+    autocorrect:'off',
+    spellcheck:'false',
+    autocomplete: def.confirmOf ? 'off' : 'email',
+    'aria-label':def.label
+  });
+  const {wrap,update}=makeFloatWrap(inp,def.label);
+  container.appendChild(wrap); focusChain.push(inp);
+
+  inp.addEventListener('input',()=>{
+    clearErr(inp);
+    clearFieldError(def.id);
+    /* If this is the source field, clear error on confirm field too */
+    if(def.id){
+      const confirmEl=document.querySelector(`[data-confirm-of="${def.id}"]`);
+      if(confirmEl){ clearErr(confirmEl); clearFieldError(def.confirmOf||''); }
+    }
+  });
+  inp.addEventListener('blur',()=>{
+    const confirmVal = inp.value.trim();
+    if(!confirmVal) return;
+
+    /* Find the source email field using DOM only — no closure dependencies */
+    /* Strategy: find all email/text inputs before this one in the form */
+    const allInputs = Array.from(document.querySelectorAll('input[type="email"], input[type="text"].seg-full'));
+    const myIndex  = allInputs.indexOf(inp);
+    if(myIndex <= 0) return;
+
+    /* Check if this field looks like a confirmation field */
+    const lbl = (def.label||'').toLowerCase();
+    const isConfirm = def.confirmOf ||
+      lbl.includes('confirm') || lbl.includes('verif') ||
+      lbl.includes('re-enter') || lbl.includes('repeat');
+    if(!isConfirm) return;
+
+    /* Find the nearest preceding email-type input */
+    let sourceInp = null;
+    for(let i = myIndex-1; i >= 0; i--){
+      if(allInputs[i].type==='email' || allInputs[i].inputMode==='email'){
+        sourceInp = allInputs[i]; break;
+      }
+      /* Also accept text inputs that look like email fields */
+      const prevLbl = (allInputs[i].getAttribute('aria-label')||'').toLowerCase();
+      if(prevLbl.includes('email')){ sourceInp = allInputs[i]; break; }
+    }
+    if(!sourceInp) return;
+
+    const sourceVal = sourceInp.value.trim();
+    if(!sourceVal) return;
+
+    if(confirmVal !== sourceVal){
+      inp.classList.add('error');
+      showFieldError(def.id, 'Does not match — please check both email addresses');
+    } else {
+      clearErr(inp);
+      clearFieldError(def.id);
+    }
+  });
+
+  /* Mark confirm fields so we can find them */
+  if(def.confirmOf) inp.dataset.confirmOf=def.confirmOf;
+
+  register(def.id,{
+    elements:[inp],
+    getValue:()=>inp.value.trim(),
+    setValue:v=>{inp.value=v;clearErr(inp);update();},
+    clearErrors:()=>clearErr(inp),
+    validate:()=>{
+      const v=inp.value.trim();
+      if(!v&&def.required!==false) return {el:inp,msg:`${def.label} is required`};
+      if(v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return {el:inp,msg:`${def.label}: please enter a valid email address`};
+      /* Confirmation check */
+      if(def.confirmOf){
+        const sourceReg=Object.values(arguments[4]||{}).find ? null : null;
+        /* Find source field value via DOM */
+        const sourceInp=document.querySelector(`input[aria-label]`);
+        /* Use fieldRegistry via closure — checked in validateAll */
+      }
+      return null;
+    },
+    storeKey:'reg_'+def.id,
+    populateFn:v=>{inp.value=v;clearErr(inp);update();},
+    confirmOf: def.confirmOf||null
+  });
+}
+
+/* ── Google Places init ── */
+let _googlePlacesReady = false;
+function initGooglePlaces(){ _googlePlacesReady = true; }
+
+/* ── Address autocomplete field ── */
+function buildAddressAutoField(def,container,focusChain,optionSets,register){
+  /* Row 1: street number + street name with autocomplete */
+  const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
+
+  const numInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',
+    autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',
+    style:'width:88px;flex-shrink:0;'
+  });
+
+  /* Street name with autocomplete wrapper */
+  const stWrap=document.createElement('div'); stWrap.className='addr-wrap'; stWrap.style.flex='1';
+  const stInp=makeInput('seg',{
+    type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',
+    spellcheck:'false',placeholder:'Street name','aria-label':'Street name',
+    style:'width:100%;text-align:left;padding:10px 12px;font-size:16px;'
+  });
+  const suggBox=document.createElement('div'); suggBox.className='addr-suggestions';
+  stWrap.appendChild(stInp); stWrap.appendChild(suggBox);
+
+  row1.appendChild(numInp); row1.appendChild(stWrap);
+
+  /* Row 2: unit (optional) */
+  const row2=document.createElement('div'); row2.className='field-row';
+  const unitInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',
+    spellcheck:'false',placeholder:'Apt / Unit','aria-label':'Unit (optional)',
+    style:'width:110px;text-align:left;padding:10px 10px;font-size:15px;'
+  });
+  const hint=document.createElement('span'); hint.className='opt-hint'; hint.textContent='optional';
+  row2.appendChild(unitInp); row2.appendChild(hint);
+
+  container.appendChild(row1); container.appendChild(row2);
+  focusChain.push(numInp,stInp,unitInp);
+
+  /* Stored parsed address components */
+  let parsedCity='', parsedProvince='', parsedPostal='';
+
+  /* Google Places autocomplete */
+  let autocompleteService=null, sessionToken=null;
+  let currentSuggestions=[], activeIdx=-1;
+
+  function initAutocomplete(){
+    if(!_googlePlacesReady||!window.google) return;
+    autocompleteService=new google.maps.places.AutocompleteService();
+    sessionToken=new google.maps.places.AutocompleteSessionToken();
+  }
+
+  /* Try to init immediately, or wait for Google to load */
+  if(_googlePlacesReady) initAutocomplete();
+  else { const iv=setInterval(()=>{ if(_googlePlacesReady){ initAutocomplete(); clearInterval(iv); } },200); }
+
+  function showSuggestions(predictions){
+    suggBox.innerHTML='';
+    currentSuggestions=predictions||[];
+    activeIdx=-1;
+    if(!currentSuggestions.length){ suggBox.classList.remove('open'); return; }
+    currentSuggestions.forEach((p,i)=>{
+      const item=document.createElement('div'); item.className='addr-suggestion-item';
+      const main=document.createElement('div'); main.className='addr-suggestion-main';
+      /* Show street part */
+      main.textContent=p.structured_formatting.main_text;
+      const sub=document.createElement('div'); sub.className='addr-suggestion-sub';
+      sub.textContent=p.structured_formatting.secondary_text;
+      item.appendChild(main); item.appendChild(sub);
+      item.addEventListener('mousedown', e=>{ e.preventDefault(); selectSuggestion(i); });
+      suggBox.appendChild(item);
+    });
+    suggBox.classList.add('open');
+  }
+
+  function selectSuggestion(idx){
+    const pred=currentSuggestions[idx]; if(!pred) return;
+    suggBox.classList.remove('open');
+    /* Get place details to extract components */
+    const placesService=new google.maps.places.PlacesService(document.createElement('div'));
+    placesService.getDetails({
+      placeId: pred.place_id,
+      fields: ['address_components','formatted_address'],
+      sessionToken
+    }, (place, status)=>{
+      if(status !== google.maps.places.PlacesServiceStatus.OK) return;
+      sessionToken=new google.maps.places.AutocompleteSessionToken();
+
+      let streetNum='', streetName='', city='', province='', postal='';
+      place.address_components.forEach(c=>{
+        if(c.types.includes('street_number'))               streetNum  = c.long_name;
+        if(c.types.includes('route'))                        streetName = c.long_name;
+        if(c.types.includes('locality'))                     city       = c.long_name;
+        if(c.types.includes('administrative_area_level_1'))  province   = c.short_name;
+        if(c.types.includes('postal_code'))                  postal     = c.long_name;
+      });
+
+      /* Fill street fields */
+      if(streetNum) numInp.value=streetNum;
+      stInp.value=streetName;
+      parsedCity=city; parsedProvince=province; parsedPostal=postal;
+
+      /* Auto-fill city, province, postal in other fields */
+      autoFillAddressComponents(city, province, postal);
+      clearErr(stInp); clearErr(numInp);
+    });
+  }
+
+  stInp.addEventListener('input',()=>{
+    clearErr(stInp);
+    const q=stInp.value.trim();
+    if(!q||q.length<3||!autocompleteService){ suggBox.classList.remove('open'); return; }
+    autocompleteService.getPlacePredictions({
+      input: (numInp.value.trim()+' '+q).trim(),
+      componentRestrictions:{ country:'ca' },
+      types:['address'],
+      sessionToken
+    },(predictions,status)=>{
+      if(status===google.maps.places.PlacesServiceStatus.OK) showSuggestions(predictions);
+      else suggBox.classList.remove('open');
+    });
+  });
+
+  /* Keyboard navigation */
+  stInp.addEventListener('keydown',e=>{
+    const items=suggBox.querySelectorAll('.addr-suggestion-item');
+    if(e.key==='ArrowDown'){ e.preventDefault(); activeIdx=Math.min(activeIdx+1,items.length-1); items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx)); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); activeIdx=Math.max(activeIdx-1,0); items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx)); }
+    else if(e.key==='Enter'&&activeIdx>=0){ e.preventDefault(); selectSuggestion(activeIdx); }
+    else if(e.key==='Escape'){ suggBox.classList.remove('open'); }
+    else if(e.key==='Backspace'&&stInp.value==='') numInp.focus();
+  });
+  stInp.addEventListener('blur',()=>{ setTimeout(()=>suggBox.classList.remove('open'),200); });
+
+  numInp.addEventListener('input',()=>{ numInp.value=numInp.value.replace(/\D/g,''); clearErr(numInp); });
+  numInp.addEventListener('keydown',e=>{ if((e.key==='Tab'||e.key==='Enter')&&numInp.value){e.preventDefault();stInp.focus();} });
+  unitInp.addEventListener('input',()=>{ unitInp.value=unitInp.value.replace(/[^0-9]/g,''); clearErr(unitInp); });
+  unitInp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&unitInp.value==='') stInp.focus(); });
+
+  const getValue=()=>`${numInp.value}|${stInp.value.trim()}|${unitInp.value.trim()}`;
+  const setValue=val=>{ const p=val.split('|'); numInp.value=p[0]||''; stInp.value=p[1]||''; unitInp.value=p[2]||''; [numInp,stInp,unitInp].forEach(clearErr); };
+  const displayVal=()=>[numInp.value,stInp.value.trim(),unitInp.value.trim()].filter(Boolean).join(' ');
+
+  register(def.id,{
+    elements:[numInp,stInp,unitInp], getValue, setValue,
+    clearErrors:()=>[numInp,stInp,unitInp].forEach(clearErr),
+    validate:()=>{
+      if(!numInp.value.trim()) return {el:numInp,msg:'Street number is required'};
+      if(!stInp.value.trim())  return {el:stInp, msg:'Street name is required'};
+      return null;
+    },
+    storeKey:'reg_'+def.id, populateFn:setValue, displayValue:displayVal
+  });
+}
+
+/* ── Address with postal code (self-contained) ── */
+function buildAddressWithPostalField(def,container,focusChain,optionSets,register){
+  /* Row 1: street number + street name with autocomplete */
+  const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
+
+  const numInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',
+    autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',
+    style:'width:88px;flex-shrink:0;'
+  });
+
+  const stWrap=document.createElement('div'); stWrap.className='addr-wrap'; stWrap.style.flex='1';
+  const stInp=makeInput('seg',{
+    type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',
+    spellcheck:'false',placeholder:'Street name','aria-label':'Street name',
+    style:'width:100%;text-align:left;padding:10px 12px;font-size:16px;'
+  });
+  const suggBox=document.createElement('div'); suggBox.className='addr-suggestions';
+  stWrap.appendChild(stInp); stWrap.appendChild(suggBox);
+  row1.appendChild(numInp); row1.appendChild(stWrap);
+
+  /* Row 2: unit + postal code */
+  const row2=document.createElement('div'); row2.className='field-row'; row2.style.marginBottom='0';
+  const unitInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',
+    spellcheck:'false',placeholder:'Apt / Unit','aria-label':'Unit (optional)',
+    style:'width:110px;text-align:left;padding:10px 10px;font-size:15px;'
+  });
+  const hint=document.createElement('span'); hint.className='opt-hint'; hint.textContent='optional';
+
+  /* Postal code — ANA NAN split inline */
+  const postalWrap=document.createElement('div'); postalWrap.style.cssText='display:flex;align-items:center;gap:6px;margin-left:auto;';
+  const postalLabel=document.createElement('span'); postalLabel.style.cssText='font-size:12px;color:var(--t-label);white-space:nowrap;';
+  postalLabel.textContent='Postal:';
+  const pc=[];
+  const pcTypes=['alpha','num','alpha','num','alpha','num'];
+  const pcPlaceholders=['A','N','A','N','A','N'];
+  pcTypes.forEach((t,i)=>{
+    const inp=makeInput('seg',{
+      type:'text',
+      inputmode:t==='alpha'?'text':'numeric',
+      maxlength:'1',
+      placeholder:pcPlaceholders[i],
+      autocomplete:'off',autocorrect:'off',spellcheck:'false',
+      style:'width:36px;font-size:14px;',
+      ...(t==='alpha'?{autocapitalize:'characters'}:{})
+    });
+    pc.push(inp);
+    if(i===3){ const sp=document.createElement('span'); sp.className='sep-space'; postalWrap.appendChild(sp); }
+    postalWrap.appendChild(inp);
+  });
+  postalWrap.insertBefore(postalLabel, postalWrap.firstChild);
+
+  row2.appendChild(unitInp); row2.appendChild(hint); row2.appendChild(postalWrap);
+
+  container.appendChild(row1); container.appendChild(row2);
+  focusChain.push(numInp, stInp, unitInp, ...pc);
+
+  /* Wire postal segments */
+  pc.forEach((el,i)=>{
+    const isAlpha=pcTypes[i]==='alpha';
+    const next=pc[i+1]||null; const prev=pc[i-1]||unitInp;
+    el.addEventListener('input',()=>{
+      let v=el.value;
+      if(isAlpha) v=v.replace(/[^a-zA-Z]/g,'').toUpperCase();
+      else v=v.replace(/\D/g,'');
+      el.value=v; clearErr(el);
+      if(v.length===1&&next) next.focus();
+    });
+    el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&el.value==='') prev.focus(); });
+  });
+
+  /* Google Places autocomplete */
+  let autocompleteService=null, sessionToken=null;
+  let currentSuggestions=[], activeIdx=-1;
+
+  function initAC(){
+    if(!_googlePlacesReady||!window.google) return;
+    autocompleteService=new google.maps.places.AutocompleteService();
+    sessionToken=new google.maps.places.AutocompleteSessionToken();
+  }
+  if(_googlePlacesReady) initAC();
+  else { const iv=setInterval(()=>{ if(_googlePlacesReady){ initAC(); clearInterval(iv); } },200); }
+
+  function showSugg(predictions){
+    suggBox.innerHTML=''; currentSuggestions=predictions||[]; activeIdx=-1;
+    if(!currentSuggestions.length){ suggBox.classList.remove('open'); return; }
+    currentSuggestions.forEach((p,i)=>{
+      const item=document.createElement('div'); item.className='addr-suggestion-item';
+      const main=document.createElement('div'); main.className='addr-suggestion-main'; main.textContent=p.structured_formatting.main_text;
+      const sub=document.createElement('div');  sub.className='addr-suggestion-sub';  sub.textContent=p.structured_formatting.secondary_text;
+      item.appendChild(main); item.appendChild(sub);
+      item.addEventListener('mousedown',e=>{ e.preventDefault(); selectSugg(i); });
+      suggBox.appendChild(item);
+    });
+    suggBox.classList.add('open');
+  }
+
+  function selectSugg(idx){
+    const pred=currentSuggestions[idx]; if(!pred) return;
+    suggBox.classList.remove('open');
+    const svc=new google.maps.places.PlacesService(document.createElement('div'));
+    svc.getDetails({placeId:pred.place_id,fields:['address_components'],sessionToken},(place,status)=>{
+      if(status!==google.maps.places.PlacesServiceStatus.OK) return;
+      sessionToken=new google.maps.places.AutocompleteSessionToken();
+      let streetNum='',streetName='',postal='';
+      place.address_components.forEach(c=>{
+        if(c.types.includes('street_number')) streetNum=c.long_name;
+        if(c.types.includes('route'))          streetName=c.long_name;
+        if(c.types.includes('postal_code'))    postal=c.long_name.replace(/\s/g,'');
+      });
+      if(streetNum) numInp.value=streetNum;
+      stInp.value=streetName;
+      /* Fill postal segments */
+      pc.forEach((el,i)=>{ el.value=postal[i]||''; });
+      [numInp,stInp,...pc].forEach(clearErr);
+      /* Also fill city/province in other fields */
+      let city='',province='';
+      place.address_components.forEach(c=>{
+        if(c.types.includes('locality')) city=c.long_name;
+        if(c.types.includes('administrative_area_level_1')) province=c.short_name;
+      });
+      autoFillAddressComponents(city,province,'');
+    });
+  }
+
+  stInp.addEventListener('input',()=>{
+    clearErr(stInp);
+    const q=stInp.value.trim();
+    if(!q||q.length<3||!autocompleteService){ suggBox.classList.remove('open'); return; }
+    autocompleteService.getPlacePredictions({
+      input:(numInp.value.trim()+' '+q).trim(),
+      componentRestrictions:{country:'ca'},types:['address'],sessionToken
+    },(predictions,status)=>{
+      if(status===google.maps.places.PlacesServiceStatus.OK) showSugg(predictions);
+      else suggBox.classList.remove('open');
+    });
+  });
+  stInp.addEventListener('keydown',e=>{
+    const items=suggBox.querySelectorAll('.addr-suggestion-item');
+    if(e.key==='ArrowDown'){e.preventDefault();activeIdx=Math.min(activeIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeIdx=Math.max(activeIdx-1,0);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();selectSugg(activeIdx);}
+    else if(e.key==='Escape'){suggBox.classList.remove('open');}
+    else if(e.key==='Backspace'&&stInp.value==='') numInp.focus();
+  });
+  stInp.addEventListener('blur',()=>setTimeout(()=>suggBox.classList.remove('open'),200));
+
+  numInp.addEventListener('input',()=>{ numInp.value=numInp.value.replace(/\D/g,''); clearErr(numInp); });
+  numInp.addEventListener('keydown',e=>{ if((e.key==='Tab'||e.key==='Enter')&&numInp.value){e.preventDefault();stInp.focus();} });
+  unitInp.addEventListener('input',()=>{ unitInp.value=unitInp.value.replace(/[^0-9]/g,''); clearErr(unitInp); });
+  unitInp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&unitInp.value==='') stInp.focus(); });
+
+  function getPostal(){ return pc.map(el=>el.value.toUpperCase()).join('').replace(/^(.{3})(.{3})$/,'$1 $2'); }
+  function getValue(){ return `${numInp.value}|${stInp.value.trim()}|${unitInp.value.trim()}|${getPostal()}`; }
+  function setValue(val){
+    const p=val.split('|');
+    numInp.value=p[0]||''; stInp.value=p[1]||''; unitInp.value=p[2]||'';
+    const postal=(p[3]||'').replace(/\s/g,'');
+    pc.forEach((el,i)=>{ el.value=postal[i]||''; });
+    [numInp,stInp,unitInp,...pc].forEach(clearErr);
+  }
+  const displayVal=()=>[numInp.value,stInp.value.trim(),unitInp.value.trim(),getPostal()].filter(Boolean).join(' ');
+
+  register(def.id,{
+    elements:[numInp,stInp,unitInp,...pc], getValue, setValue,
+    clearErrors:()=>[numInp,stInp,unitInp,...pc].forEach(clearErr),
+    validate:()=>{
+      if(!numInp.value.trim()) return {el:numInp,msg:'Street number is required'};
+      if(!stInp.value.trim())  return {el:stInp, msg:'Street name is required'};
+      return null;
+    },
+    storeKey:'reg_'+def.id, populateFn:setValue, displayValue:displayVal
+  });
+}
+
+/* ── Big Address — all components in one grouped block ── */
+function buildBigAddressField(def,container,focusChain,optionSets,register){
+  const PROVINCES=[
+    {value:'AB',label:'AB – Alberta'},{value:'BC',label:'BC – British Columbia'},
+    {value:'MB',label:'MB – Manitoba'},{value:'NB',label:'NB – New Brunswick'},
+    {value:'NL',label:'NL – Newfoundland & Labrador'},{value:'NS',label:'NS – Nova Scotia'},
+    {value:'NT',label:'NT – Northwest Territories'},{value:'NU',label:'NU – Nunavut'},
+    {value:'ON',label:'ON – Ontario'},{value:'PE',label:'PE – Prince Edward Island'},
+    {value:'QC',label:'QC – Québec'},{value:'SK',label:'SK – Saskatchewan'},
+    {value:'YT',label:'YT – Yukon'}
+  ];
+
+  /* ── Row 1: street number + street name (searchable) ── */
+  const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
+
+  const numInp=makeInput('seg',{
+    type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',
+    autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',
+    style:'width:88px;flex-shrink:0;'
+  });
+
+  const stWrap=document.createElement('div'); stWrap.className='addr-wrap'; stWrap.style.flex='1';
+  const stInp=makeInput('seg',{
+    type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',
+    spellcheck:'false',placeholder:'Street name','aria-label':'Street name',
+    style:'width:100%;text-align:left;padding:10px 12px;font-size:16px;'
+  });
+  const suggBox=document.createElement('div'); suggBox.className='addr-suggestions';
+  stWrap.appendChild(stInp); stWrap.appendChild(suggBox);
+  row1.appendChild(numInp); row1.appendChild(stWrap);
+
+  /* ── Row 2: apt/unit ── */
+  const row2=document.createElement('div'); row2.className='field-row'; row2.style.marginBottom='8px';
+  const unitInpEl=makeInput('seg-full',{type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',spellcheck:'false','aria-label':'Apt / Unit'});
+  const {wrap:unitWrap,update:unitUpdate}=makeFloatWrap(unitInpEl,'Apt / Unit (optional)');
+  const unitInp=unitWrap.querySelector('input');
+  row2.appendChild(unitWrap);
+
+  /* ── Row 3: city + province ── */
+  const row3=document.createElement('div'); row3.className='field-row-2col'; row3.style.marginBottom='8px';
+  const cityInpEl=makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City'});
+  const {wrap:cityWrap,update:cityUpdate}=makeFloatWrap(cityInpEl,'City');
+  const cityInp=cityWrap.querySelector('input');
+
+  const provSel=makeSelect('seg-select',PROVINCES,'');
+  provSel.style.width='100%';
+  const {wrap:provWrap,update:provUpdate}=makeFloatWrap(provSel,'Province');
+  row3.appendChild(cityWrap); row3.appendChild(provWrap);
+
+  /* ── Row 4: postal code ── */
+  const row4=document.createElement('div');
+  row4.style.cssText='display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:0;';
+  const postalLbl=document.createElement('span');
+  postalLbl.style.cssText='font-size:12px;font-weight:500;color:var(--t-label);white-space:nowrap;margin-right:4px;';
+  postalLbl.textContent='Postal:';
+  row4.appendChild(postalLbl);
+  const pc=[];
+  const pcTypes=['alpha','num','alpha','num','alpha','num'];
+  pcTypes.forEach((t,i)=>{
+    const inp=makeInput('seg',{
+      type:'text',
+      inputmode:t==='alpha'?'text':'numeric',
+      maxlength:'1',
+      placeholder:t==='alpha'?'A':'N',
+      autocomplete:'off',autocorrect:'off',spellcheck:'false',
+      style:'width:40px;height:46px;font-size:15px;flex-shrink:0;',
+      ...(t==='alpha'?{autocapitalize:'characters'}:{})
+    });
+    pc.push(inp);
+    if(i===2){
+      const sp=document.createElement('span');
+      sp.style.cssText='width:8px;flex-shrink:0;';
+      row4.appendChild(sp);
+    }
+    row4.appendChild(inp);
+  });
+
+  /* Append all rows */
+  container.appendChild(row1);
+  container.appendChild(row2);
+  container.appendChild(row3);
+  container.appendChild(row4);
+  focusChain.push(numInp,stInp,unitInp,cityInp,provSel,...pc);
+
+  /* ── Wire postal segments ── */
+  pc.forEach((el,i)=>{
+    const isAlpha=pcTypes[i]==='alpha';
+    const next=pc[i+1]||null; const prev=pc[i-1]||provSel;
+    el.addEventListener('input',()=>{
+      let v=el.value;
+      if(isAlpha) v=v.replace(/[^a-zA-Z]/g,'').toUpperCase();
+      else v=v.replace(/\D/g,'');
+      el.value=v; clearErr(el);
+      if(v.length===1&&next) next.focus();
+    });
+    el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&el.value==='') prev.focus(); });
+  });
+
+  /* ── Wire other fields ── */
+  numInp.addEventListener('input',()=>{ numInp.value=numInp.value.replace(/\D/g,''); clearErr(numInp); });
+  numInp.addEventListener('keydown',e=>{ if((e.key==='Tab'||e.key==='Enter')&&numInp.value){e.preventDefault();stInp.focus();} });
+  stInp.addEventListener('input',()=>clearErr(stInp));
+  stInp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&stInp.value==='') numInp.focus(); });
+  unitInp.addEventListener('input',()=>{ unitInp.value=unitInp.value.replace(/[^0-9]/g,''); clearErr(unitInp); unitUpdate(); });
+  cityInp.addEventListener('input',()=>{ clearErr(cityInp); cityUpdate(); });
+  provSel.addEventListener('change',()=>{ clearErr(provSel); provUpdate(); });
+
+  /* ── Google Places autocomplete ── */
+  let autocompleteService=null, sessionToken=null;
+  let currentSuggestions=[], activeIdx=-1;
+
+  function initAC(){
+    if(!_googlePlacesReady||!window.google) return;
+    autocompleteService=new google.maps.places.AutocompleteService();
+    sessionToken=new google.maps.places.AutocompleteSessionToken();
+  }
+  if(_googlePlacesReady) initAC();
+  else { const iv=setInterval(()=>{ if(_googlePlacesReady){ initAC(); clearInterval(iv); } },200); }
+
+  function showSugg(predictions){
+    suggBox.innerHTML=''; currentSuggestions=predictions||[]; activeIdx=-1;
+    if(!currentSuggestions.length){ suggBox.classList.remove('open'); return; }
+    currentSuggestions.forEach((p,i)=>{
+      const item=document.createElement('div'); item.className='addr-suggestion-item';
+      const main=document.createElement('div'); main.className='addr-suggestion-main'; main.textContent=p.structured_formatting.main_text;
+      const sub=document.createElement('div');  sub.className='addr-suggestion-sub';  sub.textContent=p.structured_formatting.secondary_text;
+      item.appendChild(main); item.appendChild(sub);
+      item.addEventListener('mousedown',e=>{ e.preventDefault(); selectSugg(i); });
+      suggBox.appendChild(item);
+    });
+    suggBox.classList.add('open');
+  }
+
+  function selectSugg(idx){
+    const pred=currentSuggestions[idx]; if(!pred) return;
+    suggBox.classList.remove('open');
+    const svc=new google.maps.places.PlacesService(document.createElement('div'));
+    svc.getDetails({placeId:pred.place_id,fields:['address_components'],sessionToken},(place,status)=>{
+      if(status!==google.maps.places.PlacesServiceStatus.OK) return;
+      sessionToken=new google.maps.places.AutocompleteSessionToken();
+      let streetNum='',streetName='',city='',province='',postal='';
+      place.address_components.forEach(c=>{
+        if(c.types.includes('street_number'))              streetNum =c.long_name;
+        if(c.types.includes('route'))                       streetName=c.long_name;
+        if(c.types.includes('locality'))                    city      =c.long_name;
+        if(c.types.includes('administrative_area_level_1')) province  =c.short_name;
+        if(c.types.includes('postal_code'))                 postal    =c.long_name.replace(/\s/g,'');
+      });
+      if(streetNum) numInp.value=streetNum;
+      stInp.value=streetName;
+      cityInp.value=city; cityUpdate(); clearErr(cityInp);
+      provSel.value=province; provUpdate(); clearErr(provSel);
+      const postalClean=postal.replace(/\s/g,'');
+      pc.forEach((el,i)=>{ el.value=postalClean[i]||''; clearErr(el); });
+      clearErr(numInp); clearErr(stInp);
+      /* Trigger has-value on floating labels */
+      [cityInp,provSel].forEach(el=>{
+        const wrap=el.closest('.fl-wrap');
+        if(wrap) wrap.classList.toggle('has-value', el.value!=='');
+      });
+    });
+  }
+
+  stInp.addEventListener('input',()=>{
+    clearErr(stInp);
+    const q=stInp.value.trim();
+    if(!q||q.length<3||!autocompleteService){ suggBox.classList.remove('open'); return; }
+    autocompleteService.getPlacePredictions({
+      input:(numInp.value.trim()+' '+q).trim(),
+      componentRestrictions:{country:'ca'},types:['address'],sessionToken
+    },(predictions,status)=>{
+      if(status===google.maps.places.PlacesServiceStatus.OK) showSugg(predictions);
+      else suggBox.classList.remove('open');
+    });
+  });
+  stInp.addEventListener('keydown',e=>{
+    const items=suggBox.querySelectorAll('.addr-suggestion-item');
+    if(e.key==='ArrowDown'){e.preventDefault();activeIdx=Math.min(activeIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeIdx=Math.max(activeIdx-1,0);items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));}
+    else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();selectSugg(activeIdx);}
+    else if(e.key==='Escape'){suggBox.classList.remove('open');}
+    else if(e.key==='Backspace'&&stInp.value==='') numInp.focus();
+  });
+  stInp.addEventListener('blur',()=>setTimeout(()=>suggBox.classList.remove('open'),200));
+
+  /* ── getValue / setValue ── */
+  function getPostal(){ return pc.map(el=>el.value.toUpperCase()).join('').replace(/^(.{3})(.{3})$/,'$1 $2'); }
+  function getValue(){ return `${numInp.value}|${stInp.value.trim()}|${unitInp.value.trim()}|${cityInp.value.trim()}|${provSel.value}|${getPostal()}`; }
+  function setValue(val){
+    const p=val.split('|');
+    numInp.value=p[0]||''; stInp.value=p[1]||''; unitInp.value=p[2]||'';
+    cityInp.value=p[3]||''; cityUpdate();
+    provSel.value=p[4]||''; provUpdate();
+    const postal=(p[5]||'').replace(/\s/g,'');
+    pc.forEach((el,i)=>{ el.value=postal[i]||''; });
+    [numInp,stInp,unitInp,cityInp,provSel,...pc].forEach(clearErr);
+  }
+  const displayVal=()=>{
+    const parts=[numInp.value,stInp.value.trim(),unitInp.value.trim()].filter(Boolean).join(' ');
+    const city=cityInp.value.trim(); const prov=provSel.value; const postal=getPostal();
+    return [parts,[city,prov].filter(Boolean).join(', '),postal].filter(Boolean).join(' — ');
+  };
+
+  register(def.id,{
+    elements:[numInp,stInp,unitInp,cityInp,provSel,...pc], getValue, setValue,
+    clearErrors:()=>[numInp,stInp,unitInp,cityInp,provSel,...pc].forEach(clearErr),
+    validate:()=>{
+      if(!numInp.value.trim()) return {el:numInp, msg:'Street number is required'};
+      if(!stInp.value.trim())  return {el:stInp,  msg:'Street name is required'};
+      if(!cityInp.value.trim())return {el:cityInp, msg:'City is required'};
+      if(!provSel.value)       return {el:provSel, msg:'Please select a province'};
+      return null;
+    },
+    storeKey:'reg_'+def.id, populateFn:setValue, displayValue:displayVal
+  });
+}
+
+/* Fill city, province, postal from Google result into matching fields */
+function autoFillAddressComponents(city, province, postal){
+  if(!window._fieldRegistry||!window._formDef) return;
+  for(const def of (window._formDef.fields||[])){
+    const reg=window._fieldRegistry[def.id]; if(!reg) continue;
+    if(def.type==='city-province'){
+      reg.setValue(`${city}|${province}`); continue;
+    }
+    const lbl=(def.label||'').toLowerCase();
+    if((lbl.includes('postal')||lbl.includes('zip')||lbl.includes('post code'))&&def.type==='split'){
+      reg.setValue(postal.replace(/\s/g,'')); continue;
+    }
+    if((lbl.includes('city')||lbl.includes('ville'))&&def.type==='free-full'){
+      reg.setValue(city); continue;
+    }
+  }
+}
+
+function buildAddressField(def,container,focusChain,optionSets,register){
+  const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
+  const numInp=makeInput('seg',{type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',style:'width:88px;'});
+  const stInp=makeInput('seg',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false',placeholder:'Street name','aria-label':'Street name',style:'flex:1;text-align:left;padding:10px 12px;font-size:16px;'});
+  row1.appendChild(numInp); row1.appendChild(stInp);
+  const row2=document.createElement('div'); row2.className='field-row';
+  const unitInp=makeInput('seg',{type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',spellcheck:'false',placeholder:'Apt / Unit','aria-label':'Unit (optional)',style:'width:110px;text-align:left;padding:10px 10px;font-size:15px;'});
+  const hint=document.createElement('span'); hint.className='opt-hint'; hint.textContent='optional';
+  row2.appendChild(unitInp); row2.appendChild(hint);
+  container.appendChild(row1); container.appendChild(row2); focusChain.push(numInp,stInp,unitInp);
+  numInp.addEventListener('input',()=>{ numInp.value=numInp.value.replace(/\D/g,''); clearErr(numInp); });
+  numInp.addEventListener('keydown',e=>{ if((e.key==='Tab'||e.key==='Enter')&&numInp.value){e.preventDefault();stInp.focus();} });
+  stInp.addEventListener('input',()=>clearErr(stInp));
+  stInp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&stInp.value==='') numInp.focus(); });
+  unitInp.addEventListener('input',()=>{ unitInp.value=unitInp.value.replace(/[^0-9]/g,''); clearErr(unitInp); });
+  unitInp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&unitInp.value==='') stInp.focus(); });
+  const getValue=()=>`${numInp.value}|${stInp.value.trim()}|${unitInp.value.trim()}`;
+  const setValue=val=>{ const p=val.split('|'); numInp.value=p[0]||''; stInp.value=p[1]||''; unitInp.value=p[2]||''; [numInp,stInp,unitInp].forEach(clearErr); };
+  register(def.id,{ elements:[numInp,stInp,unitInp], getValue, setValue, clearErrors:()=>[numInp,stInp,unitInp].forEach(clearErr), validate:()=>{ if(!numInp.value.trim()) return {el:numInp,msg:'Street number is required'}; if(!stInp.value.trim()) return {el:stInp,msg:'Street name is required'}; return null; }, storeKey:'reg_'+def.id, populateFn:setValue, displayValue:()=>[numInp.value,stInp.value.trim(),unitInp.value.trim()].filter(Boolean).join(' ') });
+}
+
+function buildCityProvinceField(def,container,focusChain,optionSets,register){
+  const grid=document.createElement('div'); grid.className='field-row-2col';
+  const cityInp=makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City'});
+  const {wrap:cityWrap,update:cityUpdate}=makeFloatWrap(cityInp,'City');
+  const provSel=makeSelect('seg-select',optionSets.provinces||[],''); provSel.style.width='100%';
+  const {wrap:provWrap,update:provUpdate}=makeFloatWrap(provSel,'Province');
+  grid.appendChild(cityWrap); grid.appendChild(provWrap); container.appendChild(grid); focusChain.push(cityInp,provSel);
+  cityInp.addEventListener('input',()=>clearErr(cityInp)); provSel.addEventListener('change',()=>clearErr(provSel));
+  const getValue=()=>`${cityInp.value.trim()}|${provSel.value}`;
+  const setValue=val=>{ const p=val.split('|'); cityInp.value=p[0]||''; provSel.value=p[1]||''; [cityInp,provSel].forEach(clearErr); cityUpdate(); provUpdate(); };
+  register(def.id,{ elements:[cityInp,provSel], getValue, setValue, clearErrors:()=>[cityInp,provSel].forEach(clearErr), validate:()=>{ if(!cityInp.value.trim()) return {el:cityInp,msg:'City is required'}; if(!provSel.value) return {el:provSel,msg:'Please select a province'}; return null; }, storeKey:'reg_'+def.id, populateFn:setValue, displayValue:()=>`${cityInp.value.trim()} ${provSel.value}`.trim() });
+}
+
+function buildDropdownField(def,container,focusChain,optionSets,register){
+  const opts=optionSets[def.optionSet]||[];
+  const sel=makeSelect('seg-select',opts,''); sel.style.width='100%';
+  const {wrap,update}=makeFloatWrap(sel,def.label);
+  container.appendChild(wrap); focusChain.push(sel);
+  sel.addEventListener('change',()=>{ clearErr(sel); update(); });
+  register(def.id,{ elements:[sel], getValue:()=>sel.value, setValue:v=>{sel.value=v;clearErr(sel);update();}, clearErrors:()=>clearErr(sel), validate:()=>{ if(!sel.value) return {el:sel,msg:`${def.label} is required`}; return null; }, storeKey:'reg_'+def.id, populateFn:v=>{sel.value=v;clearErr(sel);update();} });
+}
+
+/* ── Radio buttons ── */
+function buildRadioField(def,container,focusChain,optionSets,register){
+  const group=document.createElement('div'); group.className='radio-group';
+  let selected='';
+  const optEls=[];
+
+  (def.options||[]).forEach(opt=>{
+    const row=document.createElement('div'); row.className='radio-option';
+    const dot=document.createElement('span'); dot.className='radio-dot';
+    const lbl=document.createElement('span'); lbl.className='radio-label'; lbl.textContent=opt.label;
+    row.appendChild(dot); row.appendChild(lbl);
+    row.addEventListener('click',()=>{
+      selected=opt.value;
+      optEls.forEach(({row:r})=>r.classList.remove('selected','error'));
+      row.classList.add('selected');
+      clearMsg();
+    });
+    optEls.push({row,value:opt.value});
+    group.appendChild(row);
+  });
+  container.appendChild(group);
+
+  function getValue(){ return selected; }
+  function setValue(val){
+    selected=val;
+    optEls.forEach(({row,value})=>row.classList.toggle('selected',value===val));
+  }
+  function clearErrors(){ optEls.forEach(({row})=>row.classList.remove('error')); }
+  function validate(){
+    if(!selected){
+      optEls.forEach(({row})=>row.classList.add('error'));
+      return {el:optEls[0]?.row, msg:`${def.label}: please select an option`};
+    }
+    return null;
+  }
+
+  register(def.id,{ elements:optEls.map(({row})=>row), getValue, setValue, clearErrors, validate, storeKey:'reg_'+def.id, populateFn:setValue });
+}
+
+/* ── Checkboxes ── */
+function buildCheckboxField(def,container,focusChain,optionSets,register){
+  const group=document.createElement('div'); group.className='checkbox-group';
+  const checks={};
+
+  (def.options||[]).forEach(opt=>{
+    const row=document.createElement('div'); row.className='checkbox-option';
+    const box=document.createElement('span'); box.className='check-box';
+    const lbl=document.createElement('span'); lbl.className='checkbox-label';
+    lbl.textContent=opt.label;
+    if(opt.required===false){
+      const tag=document.createElement('span'); tag.className='optional-tag'; tag.textContent='optional';
+      lbl.appendChild(tag);
+    }
+    row.appendChild(box); row.appendChild(lbl);
+    checks[opt.value]={row, required:opt.required!==false, checked:false};
+    row.addEventListener('click',()=>{
+      checks[opt.value].checked=!checks[opt.value].checked;
+      row.classList.toggle('checked',checks[opt.value].checked);
+      row.classList.remove('error');
+      clearMsg();
+    });
+    group.appendChild(row);
+  });
+  container.appendChild(group);
+
+  function getValue(){ return Object.entries(checks).filter(([,v])=>v.checked).map(([k])=>k).join(','); }
+  function setValue(val){
+    const vals=(val||'').split(',');
+    Object.entries(checks).forEach(([k,v])=>{ v.checked=vals.includes(k); v.row.classList.toggle('checked',v.checked); });
+  }
+  function clearErrors(){ Object.values(checks).forEach(v=>v.row.classList.remove('error')); }
+  function validate(){
+    for(const [,v] of Object.entries(checks)){
+      if(v.required&&!v.checked){ v.row.classList.add('error'); return {el:v.row,msg:`Please accept the required agreements`}; }
+    }
+    return null;
+  }
+
+  register(def.id,{ elements:Object.values(checks).map(v=>v.row), getValue, setValue, clearErrors, validate, storeKey:'reg_'+def.id, populateFn:setValue });
+}
+
+/* ============================================================
+   APPLY THEME
+   ============================================================ */
+function applyTheme(t){
+  const r=document.documentElement;
+  if(t.background)      r.style.setProperty('--t-bg',          t.background);
+  if(t.cardColor)       r.style.setProperty('--t-card',         t.cardColor);
+  if(t.cardWidth)       r.style.setProperty('--t-card-width',   t.cardWidth+'px');
+  if(t.cornerRadius)    r.style.setProperty('--t-radius',       t.cornerRadius+'px');
+  if(t.fontFamily)      r.style.setProperty('--t-font',         t.fontFamily);
+  if(t.fontSizeBase)    r.style.setProperty('--t-font-size',    t.fontSizeBase+'px');
+  if(t.titleColor)      r.style.setProperty('--t-title',        t.titleColor);
+  if(t.subtitleColor)   r.style.setProperty('--t-subtitle',     t.subtitleColor);
+  if(t.labelColor)      r.style.setProperty('--t-label',        t.labelColor);
+  if(t.fieldBackground) r.style.setProperty('--t-field-bg',     t.fieldBackground);
+  if(t.fieldBorder)     r.style.setProperty('--t-field-border', t.fieldBorder);
+  if(t.fieldFocusBorder)r.style.setProperty('--t-field-focus',  t.fieldFocusBorder);
+  if(t.fieldErrorBorder)r.style.setProperty('--t-field-error',  t.fieldErrorBorder);
+  if(t.buttonColor)     r.style.setProperty('--t-btn-bg',       t.buttonColor);
+  if(t.buttonText)      r.style.setProperty('--t-btn-text',     t.buttonText);
+  if(t.logo){ const wrap=document.getElementById('form-logo'),img=document.getElementById('form-logo-img'); img.src=t.logo; img.style.maxWidth=(t.logoWidth||'120')+'px'; wrap.className=''; wrap.classList.add('align-'+(t.logoPosition||'left')); wrap.style.display='block'; }
+  if(t.darkMode==='off'){ const s=document.createElement('style'); s.textContent='@media(prefers-color-scheme:dark){body,html{background:var(--t-bg)!important;}.card{background:var(--t-card)!important;}.seg,.seg-full,.seg-select{background:var(--t-field-bg)!important;color:var(--t-title)!important;border-color:var(--t-field-border)!important;}.fl-wrap.has-value .fl-label,.fl-wrap:focus-within .fl-label{background:var(--t-card)!important;}.radio-option,.checkbox-option{background:var(--t-field-bg)!important;border-color:var(--t-field-border)!important;}}'; document.head.appendChild(s); }
+}
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+/* ── Submission summary ── */
+function showSubmissionSummary(fields, fieldRegistry, parts){
+  /* Hide the form fields and button */
+  const formFields = document.getElementById('form-fields');
+  const submitBtn  = document.getElementById('submit-btn');
+  const msgEl      = document.getElementById('msg');
+  formFields.style.display='none';
+  submitBtn.style.display='none';
+  msgEl.style.display='none';
+
+  /* Build summary card */
+  const summary = document.createElement('div');
+  summary.id = 'submission-summary';
+  summary.style.cssText='animation:fadeIn 0.3s ease';
+
+  /* Success header */
+  const header = document.createElement('div');
+  header.style.cssText='text-align:center;margin-bottom:1.5rem;';
+  header.innerHTML=`
+    <div style="font-size:48px;margin-bottom:0.5rem">✅</div>
+    <div style="font-size:20px;font-weight:700;color:var(--t-title)">Submitted successfully</div>
+    <div style="font-size:14px;color:var(--t-subtitle);margin-top:4px">${new Date().toLocaleString()}</div>`;
+  summary.appendChild(header);
+
+  /* Divider */
+  const div1=document.createElement('hr'); div1.className='divider'; summary.appendChild(div1);
+
+  /* Field-by-field summary */
+  fields.forEach(def=>{
+    const reg=fieldRegistry[def.id]; if(!reg) return;
+    const val=(reg.displayValue?reg.displayValue():reg.getValue())||'—';
+    if(!val||val==='—') return;
+
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;';
+    const lbl=document.createElement('div');
+    lbl.style.cssText='font-size:12px;font-weight:600;color:var(--t-label);min-width:140px;flex-shrink:0;padding-top:2px;text-transform:uppercase;letter-spacing:0.04em;';
+    lbl.textContent=def.label;
+    const val2=document.createElement('div');
+    val2.style.cssText='font-size:15px;font-weight:500;color:var(--t-title);flex:1;word-break:break-word;';
+    /* Format checkbox/radio values nicely */
+    if(def.type==='checkbox'||def.type==='radio'){
+      const selected=val.split(',').map(v=>{
+        const opt=(def.options||[]).find(o=>o.value===v);
+        return opt?opt.label:v;
+      }).join(', ');
+      val2.textContent=selected||'—';
+    } else {
+      val2.textContent=val;
+    }
+    row.appendChild(lbl); row.appendChild(val2);
+    summary.appendChild(row);
+  });
+
+  /* New submission button */
+  const newBtn=document.createElement('button');
+  newBtn.className='btn';
+  newBtn.style.marginTop='1.5rem';
+  newBtn.textContent='Submit another response';
+  newBtn.addEventListener('click',()=>{
+    summary.remove();
+    formFields.style.display='';
+    submitBtn.style.display='';
+    msgEl.style.display='';
+    if(focusChain&&focusChain[0]) focusChain[0].focus();
+  });
+  summary.appendChild(newBtn);
+
+  /* Insert after form fields */
+  formFields.parentNode.insertBefore(summary, submitBtn);
+}
+
+/* Fade in animation */
+const _style=document.createElement('style');
+_style.textContent='@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+document.head.appendChild(_style);
+
+async function init(){
+  try{ const res=await fetch('theme.json'); if(res.ok) applyTheme(await res.json()); }catch(e){}
+
+  let formDef;
+  try{
+    const res=await fetch('form.json');
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    formDef=await res.json();
+  }catch(e){
+    document.getElementById('form-title').textContent='';
+    document.getElementById('form-fields').innerHTML=`<div class="load-error"><strong>Could not load form.json</strong>Make sure form.json is in the same folder as index.html.<br>(Error: ${e.message})</div>`;
+    return;
+  }
+
+  window._formDef=formDef; /* for address autocomplete */
+  document.title=formDef.title||'Form';
+  document.getElementById('form-title').textContent   =formDef.title   ||'';
+  document.getElementById('form-subtitle').textContent=formDef.subtitle||'';
+
+  const btn=document.getElementById('submit-btn');
+  btn.textContent=formDef.submitLabel||'Submit';
+  btn.style.display='';
+
+  const optionSets={}; Object.assign(optionSets,formDef.optionSets||{});
+  const fieldRegistry={}; const focusChain=[];
+  window._fieldRegistry=fieldRegistry; /* for address autocomplete */
+  function register(id,obj){ fieldRegistry[id]=obj; }
+
+  /* Auto-fill age from DOB */
+  window._autoFillAge = function autoFillAge(mon, day, yr){
+    if(!mon||!day||!yr||yr<1900) return;
+    if(!MONTHS.includes(mon.toUpperCase())) return;
+    const today=new Date();
+    const birth=new Date(yr, MONTHS.indexOf(mon.toUpperCase()), day);
+    if(birth>today) return;
+    let age=today.getFullYear()-birth.getFullYear();
+    const md=today.getMonth()-birth.getMonth();
+    if(md<0||(md===0&&today.getDate()<birth.getDate())) age--;
+    for(const def of (formDef.fields||[])){
+      const lbl=(def.label||'').toLowerCase();
+      if(!lbl.includes('age')) continue;
+      if(lbl.includes('message')||lbl.includes('page')||lbl.includes('stage')) continue;
+      const reg=fieldRegistry[def.id]; if(!reg) continue;
+      if(def.type!=='split'&&def.type!=='free-full') continue;
+      reg.setValue(String(age).padStart(2,'0'));
+      break;
+    }
+  }
+
+  const container=document.getElementById('form-fields');
+  const floatingTypes=new Set(['alpha-full','free-full','email','dropdown','city-province']);
+
+  (formDef.fields||[]).forEach((def,idx)=>{
+    if(idx>0){ const hr=document.createElement('hr'); hr.className='divider'; container.appendChild(hr); }
+    const useFloating=floatingTypes.has(def.type);
+    const group=document.createElement('div');
+    group.className=useFloating?'field-group-float':'field-group';
+
+    /* Label above for non-floating types */
+    if(!useFloating){
+      const lbl=document.createElement('p'); lbl.className='field-label'; lbl.textContent=def.label;
+      group.appendChild(lbl);
+    }
+
+    const args=[def,group,focusChain,optionSets,register];
+    switch(def.type){
+      case 'alpha-full':    buildFullField(...args,true);    break;
+      case 'free-full':     buildFullField(...args,false);   break;
+      case 'email':         buildEmailField(...args);        break;
+      case 'split':         buildSplitField(...args);        break;
+      case 'address':            buildAddressAutoField(...args);      break;
+      case 'address-with-postal':  buildAddressWithPostalField(...args); break;
+      case 'big-address':          buildBigAddressField(...args);        break;
+      case 'address-manual': buildAddressField(...args);      break;
+      case 'city-province': buildCityProvinceField(...args); break;
+      case 'dropdown':      buildDropdownField(...args);     break;
+      case 'radio':         buildRadioField(...args);        break;
+      case 'checkbox':      buildCheckboxField(...args);     break;
+      default:
+        const warn=document.createElement('p');
+        warn.style.cssText='font-size:13px;color:#e05252;padding:8px 0;';
+        warn.textContent=`Unknown field type: "${def.type}"`;
+        group.appendChild(warn);
+    }
+
+    /* Chips — not shown for radio/checkbox */
+    if(def.type!=='radio'&&def.type!=='checkbox'){
+      const chips=document.createElement('div'); chips.className='chips'; chips.id='chips-'+def.id;
+      group.appendChild(chips);
+    }
+    container.appendChild(group);
+  });
+
+  const lastEl=focusChain[focusChain.length-1];
+  if(lastEl) lastEl.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+
+  function renderAll(){ Object.entries(fieldRegistry).forEach(([id,reg])=>{ if(document.getElementById('chips-'+id)) renderChips('chips-'+id,reg.storeKey,reg.populateFn); }); }
+  renderAll();
+
+  function validateAll(){
+    for(const def of (formDef.fields||[])){
+      if(def.required===false) continue;
+      const reg=fieldRegistry[def.id]; if(!reg) continue;
+      const err=reg.validate(); if(err) return err;
+    }
+
+    /* Email confirmation check — two methods:
+       Method 1: explicit confirmOf property in form.json
+       Method 2: smart detection by label name (confirm/confirmation/verify) */
+    const emailFields = (formDef.fields||[]).filter(f=>f.type==='email'||f.type==='free-full');
+
+    for(const def of (formDef.fields||[])){
+      const reg=fieldRegistry[def.id]; if(!reg) continue;
+
+      /* Method 1: explicit confirmOf */
+      if(def.confirmOf){
+        const sourceReg=fieldRegistry[def.confirmOf];
+        if(!sourceReg) continue;
+        const confirmVal=reg.getValue();
+        const sourceVal=sourceReg.getValue();
+        if(sourceVal){
+          const el=reg.elements[0];
+          if(!confirmVal) return {el, msg:`${def.label} is required`};
+          if(confirmVal!==sourceVal) return {el, msg:`${def.label}: does not match — please check both email addresses`};
+        }
+        continue;
+      }
+
+      /* Method 2: smart label detection — field label contains confirm/confirmation/verify */
+      const lbl=(def.label||'').toLowerCase();
+      const isConfirmLabel=lbl.includes('confirm')||lbl.includes('verification')||lbl.includes('verify')||lbl.includes('re-enter')||lbl.includes('repeat');
+      if(!isConfirmLabel) continue;
+      if(def.type!=='email'&&def.type!=='free-full') continue;
+
+      /* Find the preceding email field */
+      const fields=formDef.fields||[];
+      const myIdx=fields.findIndex(f=>f.id===def.id);
+      let sourceDef=null;
+      for(let i=myIdx-1;i>=0;i--){
+        if(fields[i].type==='email'||fields[i].type==='free-full'){
+          sourceDef=fields[i]; break;
+        }
+      }
+      if(!sourceDef) continue;
+      const sourceReg=fieldRegistry[sourceDef.id]; if(!sourceReg) continue;
+
+      const confirmVal=reg.getValue();
+      const sourceVal=sourceReg.getValue();
+      if(sourceVal){
+        const el=reg.elements[0];
+        if(!confirmVal) return {el, msg:`${def.label} is required`};
+        if(confirmVal!==sourceVal) return {el, msg:`${def.label}: does not match — please check both email addresses`};
+      }
+    }
+    return null;
+  }
+
+  function submit(){
+    clearMsg();
+    Object.values(fieldRegistry).forEach(r=>r.clearErrors());
+    const err=validateAll();
+    if(err){
+      if(err.el&&err.el.focus) err.el.focus();
+      else if(err.el) err.el.scrollIntoView({behavior:'smooth',block:'center'});
+      /* Also show inline error if we can find which field this belongs to */
+      if(err.el){
+        /* Find the field id by checking which registry element matches */
+        for(const [id,reg] of Object.entries(fieldRegistry)){
+          if(reg.elements.includes(err.el)){
+            showFieldError(id, err.msg);
+            break;
+          }
+        }
+      }
+      showMsg(err.msg,'err'); return;
+    }
+    Object.entries(fieldRegistry).forEach(([id,reg])=>{ const v=reg.getValue(); if(v&&v.replace(/[\|\s\-,]/g,'')) addToHistory(reg.storeKey,v); });
+    renderAll();
+    const parts=(formDef.fields||[]).map(def=>{ const reg=fieldRegistry[def.id]; if(!reg) return null; return(reg.displayValue?reg.displayValue():reg.getValue())||null; }).filter(Boolean);
+    showMsg('Saved: '+parts.join(' · '),'ok');
+    Object.values(fieldRegistry).forEach(reg=>{
+      reg.elements.forEach(el=>{ if(el.tagName==='INPUT'||el.tagName==='SELECT') el.value=''; else el.classList.remove('selected','checked'); });
+      clearFieldError(reg.storeKey.replace('reg_',''));
+    });
+    document.querySelectorAll('.fl-wrap').forEach(w=>w.classList.remove('has-value'));
+    if(focusChain[0]) focusChain[0].focus();
+  }
+
+  btn.addEventListener('click',submit);
+  if(focusChain[0]) focusChain[0].focus();
+}
+
+init();
+</script>
+</body>
+</html>
