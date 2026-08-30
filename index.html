@@ -468,7 +468,15 @@ function buildSplitField(def,container,focusChain,optionSets,register){
 }
 
 function buildFullField(def,container,focusChain,optionSets,register,alphaOnly){
-  const inp=makeInput('seg-full',{ type:'text', inputmode:'text', autocapitalize:'words', autocorrect:'off', spellcheck:'false', 'aria-label':def.label });
+  /* Smart autocomplete based on label */
+  const lbl=(def.label||'').toLowerCase();
+  let autoComplete='off';
+  if(lbl.includes('first')||lbl.includes('given')||lbl.includes('prénom')) autoComplete='given-name';
+  else if(lbl.includes('last')||lbl.includes('surname')||lbl.includes('family')||lbl.includes('nom')) autoComplete='family-name';
+  else if(lbl.includes('full')||lbl.includes('name')) autoComplete='name';
+  else if(lbl.includes('organization')||lbl.includes('company')) autoComplete='organization';
+  else if(lbl.includes('phone')||lbl.includes('mobile')||lbl.includes('tel')) autoComplete='tel';
+  const inp=makeInput('seg-full',{ type:'text', inputmode:'text', autocapitalize:'words', autocorrect:'off', spellcheck:'false', 'aria-label':def.label, autocomplete:autoComplete });
   const {wrap,update}=makeFloatWrap(inp,def.label);
   container.appendChild(wrap); focusChain.push(inp);
   inp.addEventListener('input',()=>{ if(alphaOnly) inp.value=inp.value.replace(/[^a-zA-Z\s'\-]/g,''); clearErr(inp); });
@@ -482,7 +490,7 @@ function buildEmailField(def,container,focusChain,optionSets,register){
     autocapitalize:'off',
     autocorrect:'off',
     spellcheck:'false',
-    autocomplete: def.confirmOf ? 'off' : 'email',
+    autocomplete: def.confirmOf ? 'off' : (((def.label||'').toLowerCase().includes('confirm')||(def.label||'').toLowerCase().includes('verif')) ? 'off' : 'email'),
     'aria-label':def.label
   });
   const {wrap,update}=makeFloatWrap(inp,def.label);
@@ -937,7 +945,7 @@ function buildBigAddressField(def,container,focusChain,optionSets,register){
 
   /* ── Row 3: city + province ── */
   const row3=document.createElement('div'); row3.className='field-row-2col'; row3.style.marginBottom='8px';
-  const cityInpEl=makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City'});
+  const cityInpEl=makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City',autocomplete:'address-level2'});
   const {wrap:cityWrap,update:cityUpdate}=makeFloatWrap(cityInpEl,'City');
   const cityInp=cityWrap.querySelector('input');
 
@@ -1137,7 +1145,7 @@ function autoFillAddressComponents(city, province, postal){
 function buildAddressField(def,container,focusChain,optionSets,register){
   const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
   const numInp=makeInput('seg',{type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',style:'width:88px;'});
-  const stInp=makeInput('seg',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false',placeholder:'Street name','aria-label':'Street name',style:'flex:1;text-align:left;padding:10px 12px;font-size:16px;'});
+  const stInp=makeInput('seg',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false',placeholder:'Street name','aria-label':'Street name',autocomplete:'address-line1',style:'flex:1;text-align:left;padding:10px 12px;font-size:16px;'});
   row1.appendChild(numInp); row1.appendChild(stInp);
   const row2=document.createElement('div'); row2.className='field-row';
   const unitInp=makeInput('seg',{type:'text',inputmode:'numeric',maxlength:'8',autocorrect:'off',spellcheck:'false',placeholder:'Apt / Unit','aria-label':'Unit (optional)',style:'width:110px;text-align:left;padding:10px 10px;font-size:15px;'});
@@ -1157,7 +1165,7 @@ function buildAddressField(def,container,focusChain,optionSets,register){
 
 function buildCityProvinceField(def,container,focusChain,optionSets,register){
   const grid=document.createElement('div'); grid.className='field-row-2col';
-  const cityInp=makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City'});
+  const cityInp=makeInput('seg-full',{type:'text',inputmode:'text',autocapitalize:'words',autocorrect:'off',spellcheck:'false','aria-label':'City',autocomplete:'address-level2'});
   const {wrap:cityWrap,update:cityUpdate}=makeFloatWrap(cityInp,'City');
   const provSel=makeSelect('seg-select',optionSets.provinces||[],''); provSel.style.width='100%';
   const {wrap:provWrap,update:provUpdate}=makeFloatWrap(provSel,'Province');
