@@ -129,6 +129,9 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
 
     <!-- FIELDS -->
     <div class="tab-panel active" id="tab-fields">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <button class="btn btn-ghost btn-sm" onclick="newForm()">+ New form</button>
+      </div>
       <div class="form-row"><label>Form title</label><input type="text" id="form-title" value="My Form" oninput="refreshPreview()"></div>
       <div class="form-row"><label>Subtitle</label><input type="text" id="form-subtitle" value="Please fill in all fields" oninput="refreshPreview()"></div>
       <div class="form-row"><label>Submit button label</label><input type="text" id="form-submit-label" value="Submit" oninput="refreshPreview()"></div>
@@ -476,28 +479,27 @@ function stepSet(id,state,detail){
 let _publishing = false;
 
 async function publishToGitHub(){
-  if(_publishing) return; /* prevent double-fire */
+  if(_publishing) return;
   const token=localStorage.getItem('fb_gh_token')||sessionStorage.getItem('fb_gh_token')||getCookie('fb_gh_token')||'';
   const username=localStorage.getItem('fb_gh_username')||sessionStorage.getItem('fb_gh_username')||getCookie('fb_gh_username')||'';
   const repoName=document.getElementById('pub-repo').value.trim();
-  /* Confirmation dialog */
-  if(repoName && !confirm(`About to publish to:\n\n"${repoName}"\n\nThis will overwrite existing files. Continue?`)) return;
   const desc=document.getElementById('pub-desc').value.trim();
   const isPrivate=document.getElementById('pub-private').checked;
 
-  if(!token){alert('Please enter your GitHub Personal Access Token in the ⚙ Settings tab first. Scroll the tab bar to the right to find it.');document.querySelector('[data-tab="settings"]').click();return;}
-  if(!username){alert('Please enter your GitHub username in the ⚙ Settings tab first. Scroll the tab bar to the right to find it.');document.querySelector('[data-tab="settings"]').click();return;}
-  if(!repoName){alert('Please enter a repository name (no spaces).');return;}
+  if(!token){alert('Please enter your GitHub Personal Access Token in the ⚙ Settings tab first.');document.querySelector('[data-tab="settings"]').click();return;}
+  if(!username){alert('Please enter your GitHub username in the ⚙ Settings tab first.');document.querySelector('[data-tab="settings"]').click();return;}
+  if(!repoName){alert('Please enter a repository name.');return;}
   if(!fields.length){alert('Please add at least one field before publishing.');return;}
+  if(!confirm(`About to publish to:\n\n"${repoName}"\n\nThis will overwrite existing files. Continue?`)) return;
 
-  _publishing = true;
+  _publishing=true;
   const btn=document.getElementById('pub-btn');
   btn.disabled=true; btn.textContent='Publishing…';
   document.getElementById('pub-steps').style.display='block';
   document.getElementById('pub-url-result').style.display='none';
-  ['ps-create','ps-files','ps-pages','ps-live'].forEach(id=>{
+  ['ps-create','ps-files','ps-pages','ps-live'].forEach((id,i)=>{
     document.getElementById(id+'-num').className='publish-step-num';
-    document.getElementById(id+'-num').textContent=['ps-create','ps-files','ps-pages','ps-live'].indexOf(id)+1;
+    document.getElementById(id+'-num').textContent=i+1;
     document.getElementById(id+'-detail').textContent='Waiting…';
   });
 
@@ -518,52 +520,49 @@ async function publishToGitHub(){
   const b64=str=>btoa(unescape(encodeURIComponent(str)));
 
   try {
-    // Step 1: Verify token then create or update repo
+    // Step 1: verify token and check if repo exists
     stepSet('ps-create','active','Verifying token…');
-    const userInfo = await ghAPI('/user','GET');
-    const actualUsername = userInfo.login;
+    const userInfo=await ghAPI('/user','GET');
+    const actualUsername=userInfo.login;
 
-    let repoExists = false;
-    try {
-      await ghAPI(`/repos/${actualUsername}/${repoName}`,'GET');
-      repoExists = true;
-    } catch(e) { repoExists = false; }
+    let repoExists=false;
+    try{ await ghAPI(`/repos/${actualUsername}/${repoName}`,'GET'); repoExists=true; }catch(e){}
 
     if(repoExists){
       stepSet('ps-create','done','Repository exists — updating files ✓');
     } else {
-      stepSet('ps-create','active',`Creating repository for ${actualUsername}…`);
+      stepSet('ps-create','active',`Creating repository…`);
       await ghAPI('/user/repos','POST',{name:repoName,description:desc,private:isPrivate,auto_init:false});
       stepSet('ps-create','done','Repository created ✓');
     }
 
-    // Step 2: Upload files
-    stepSet('ps-files','active','Uploading files…');
+    // Step 2: upload all files in one git commit
+    stepSet('ps-files','active','Preparing files…');
 
     let engineContent='';
     try{ const r=await fetch('index.html'); if(r.ok) engineContent=await r.text(); }catch(e){}
 
-    const formJSON=JSON.stringify(buildFormJSON(),null,2);
-    const themeJSON=JSON.stringify(buildThemeJSON(),null,2);
-
     const filesToUpload=[
-      {path:'form.json',   content:formJSON},
-      {path:'theme.json',  content:themeJSON},
+      {path:'form.json',  content:JSON.stringify(buildFormJSON(),null,2)},
+      {path:'theme.json', content:JSON.stringify(buildThemeJSON(),null,2)},
     ];
-    if(engineContent) filesToUpload.push({path:'index.html', content:engineContent});
+    if(engineContent) filesToUpload.push({path:'index.html',content:engineContent});
 
     if(repoExists){
-      /* Existing repo - use contents API */
+      // Existing repo: get default branch then upload each file
+      let branch='main';
+      try{ const ri=await ghAPI(`/repos/${actualUsername}/${repoName}`,'GET'); branch=ri.default_branch||'main'; }catch(e){}
+      
       for(const f of filesToUpload){
         stepSet('ps-files','active',`Uploading ${f.path}…`);
         let sha=undefined;
         try{ const ex=await ghAPI(`/repos/${actualUsername}/${repoName}/contents/${f.path}`,'GET'); sha=ex.sha; }catch(e){}
-        const body={message:`Update ${f.path}`,content:b64(f.content)};
+        const body={message:`Update ${f.path}`,content:b64(f.content),branch};
         if(sha) body.sha=sha;
         await ghAPI(`/repos/${actualUsername}/${repoName}/contents/${f.path}`,'PUT',body);
       }
     } else {
-      /* New empty repo - use Git Data API to create first commit without race condition */
+      // New empty repo: use Git Data API — no race condition
       stepSet('ps-files','active','Creating file blobs…');
       const treeItems=[];
       for(const f of filesToUpload){
@@ -571,16 +570,15 @@ async function publishToGitHub(){
         const blob=await ghAPI(`/repos/${actualUsername}/${repoName}/git/blobs`,'POST',{content:b64(f.content),encoding:'base64'});
         treeItems.push({path:f.path,mode:'100644',type:'blob',sha:blob.sha});
       }
-      stepSet('ps-files','active','Building tree…');
+      stepSet('ps-files','active','Building commit…');
       const tree=await ghAPI(`/repos/${actualUsername}/${repoName}/git/trees`,'POST',{tree:treeItems});
-      stepSet('ps-files','active','Creating commit…');
       const commit=await ghAPI(`/repos/${actualUsername}/${repoName}/git/commits`,'POST',{message:'Initial form files',tree:tree.sha,parents:[]});
-      stepSet('ps-files','active','Setting up branch…');
       await ghAPI(`/repos/${actualUsername}/${repoName}/git/refs`,'POST',{ref:'refs/heads/main',sha:commit.sha});
     }
     stepSet('ps-files','done',`${filesToUpload.length} files uploaded ✓`);
+    _publishing=false;
 
-    // Step 3: Enable GitHub Pages (skip if already enabled)
+    // Step 3: Enable GitHub Pages
     stepSet('ps-pages','active','Enabling GitHub Pages…');
     try{
       await ghAPI(`/repos/${actualUsername}/${repoName}/pages`,'POST',{source:{branch:'main',path:'/'}});
@@ -593,25 +591,28 @@ async function publishToGitHub(){
     stepSet('ps-live','active','Waiting for deployment (up to 60s)…');
     const liveURL=`https://${actualUsername}.github.io/${repoName}/`;
     let attempts=0;
-    const maxAttempts=12;
-    while(attempts<maxAttempts){
+    while(attempts<12){
       await new Promise(r=>setTimeout(r,5000));
       attempts++;
       stepSet('ps-live','active',`Checking… (${attempts*5}s)`);
-      try{
-        const r=await fetch(liveURL,{method:'HEAD',mode:'no-cors'});
-        break;
-      }catch(e){ if(attempts===maxAttempts) break; }
+      try{ await fetch(liveURL,{method:'HEAD',mode:'no-cors'}); break; }catch(e){ if(attempts===12) break; }
     }
     stepSet('ps-live','done','Form is live! ✓');
 
-    // Show URL
     const urlResult=document.getElementById('pub-url-result');
     const urlLink=document.getElementById('pub-url-link');
     urlLink.href=liveURL; urlLink.textContent=liveURL;
     urlResult.style.display='block';
     btn.disabled=false; btn.textContent='🚀 Publish to GitHub';
-    _publishing = false;
+    _publishing=false;
+    /* Save repo name to current form in browser storage */
+    if(currentFormKey){
+      const all=getSavedForms();
+      if(all[currentFormKey]){ all[currentFormKey].repoName=repoName; putSavedForms(all); }
+    }
+    /* Clear repo name and description after successful publish */
+    document.getElementById('pub-repo').value='';
+    document.getElementById('pub-desc').value='';
 
   }catch(e){
     const steps=['ps-create','ps-files','ps-pages','ps-live'];
@@ -619,13 +620,27 @@ async function publishToGitHub(){
     if(activeStep) stepSet(activeStep,'err',e.message);
     alert('Publish failed: '+e.message);
     btn.disabled=false; btn.textContent='🚀 Publish to GitHub';
-    _publishing = false;
+    _publishing=false;
   }
 }
 
 function copyURL(){
   const url=document.getElementById('pub-url-link').href;
   navigator.clipboard.writeText(url).then(()=>alert('URL copied to clipboard!'));
+}
+
+function newForm(){
+  if(fields.length && !confirm('Start a new form? Current fields will be cleared.')) return;
+  fields=[];
+  currentFormKey=null;
+  document.getElementById('form-title').value='My Form';
+  document.getElementById('form-subtitle').value='Please fill in all fields';
+  document.getElementById('form-submit-label').value='Submit';
+  /* Clear publish fields */
+  document.getElementById('pub-repo').value='';
+  document.getElementById('pub-desc').value='';
+  renderFieldList();
+  refreshPreview();
 }
 
 /* ── Save / Load / Import ── */
@@ -697,8 +712,9 @@ let currentFormKey = null;
 function saveCurrentForm(){
   const title = document.getElementById('form-title').value.trim()||'Untitled form';
   const key = currentFormKey || ('form_'+Date.now());
+  const repoName = document.getElementById('pub-repo').value.trim();
   const all = getSavedForms();
-  all[key] = { key, title, savedAt: new Date().toLocaleString(), state: getCurrentFormState() };
+  all[key] = { key, title, savedAt: new Date().toLocaleString(), repoName, state: getCurrentFormState() };
   putSavedForms(all);
   currentFormKey = key;
   renderSavedForms();
@@ -713,6 +729,10 @@ function loadForm(key){
   if(!entry) return;
   currentFormKey = key;
   applyFormState(entry.state);
+  /* Pre-fill publish tab from saved form */
+  if(entry.repoName) document.getElementById('pub-repo').value = entry.repoName;
+  const title = document.getElementById('form-title').value.trim();
+  if(title) document.getElementById('pub-desc').value = title;
   document.querySelector('[data-tab="fields"]').click();
 }
 
