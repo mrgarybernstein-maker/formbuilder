@@ -539,7 +539,7 @@ async function publishToGitHub(){
     }
 
     // Small delay to let GitHub initialise
-    await new Promise(r=>setTimeout(r,1500));
+    await new Promise(r=>setTimeout(r,4000)); /* wait longer for GitHub to initialize repo */
 
     // Step 2: Upload files
     stepSet('ps-files','active','Uploading files…');
