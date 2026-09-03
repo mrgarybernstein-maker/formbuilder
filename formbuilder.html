@@ -371,13 +371,30 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 /* ── API Key ── */
+function setCookie(name, value, days=365){
+  const d=new Date(); d.setTime(d.getTime()+(days*24*60*60*1000));
+  document.cookie=`${name}=${encodeURIComponent(value)};expires=${d.toUTCString()};path=/;SameSite=Strict`;
+}
+function getCookie(name){
+  const match=document.cookie.match(new RegExp('(^| )'+name+'=([^;]+)'));
+  return match?decodeURIComponent(match[2]):'';
+}
 function saveAPIKey() {
   const key = document.getElementById('api-key-input').value.trim();
   localStorage.setItem('fb_api_key', key);
+  sessionStorage.setItem('fb_api_key', key);
+  setCookie('fb_api_key', key);
   updateAPIBadge(key);
 }
 function loadAPIKey() {
-  const key = localStorage.getItem('fb_api_key') || '';
+  /* Try localStorage first, then sessionStorage, then cookie */
+  const key = localStorage.getItem('fb_api_key') ||
+               sessionStorage.getItem('fb_api_key') ||
+               getCookie('fb_api_key') || '';
+  if(key){
+    localStorage.setItem('fb_api_key', key);
+    sessionStorage.setItem('fb_api_key', key);
+  }
   document.getElementById('api-key-input').value = key;
   updateAPIBadge(key);
 }
@@ -400,30 +417,42 @@ function updateAPIBadge(key) {
 function saveGHToken(){
   const t=document.getElementById('gh-token-input').value.trim();
   localStorage.setItem('fb_gh_token',t);
+  sessionStorage.setItem('fb_gh_token',t);
+  setCookie('fb_gh_token',t);
   const s=document.getElementById('gh-token-status');
-  s.textContent=t?'Token saved.':'';
+  s.textContent=t?'Token saved in browser.':'';
   updateAuthCheck();
 }
 function saveGHUsername(){
-  localStorage.setItem('fb_gh_username',document.getElementById('gh-username-input').value.trim());
+  const u=document.getElementById('gh-username-input').value.trim();
+  localStorage.setItem('fb_gh_username',u);
+  sessionStorage.setItem('fb_gh_username',u);
+  setCookie('fb_gh_username',u);
   updateAuthCheck();
 }
 function loadGHSettings(){
-  const t=localStorage.getItem('fb_gh_token')||'';
-  const u=localStorage.getItem('fb_gh_username')||'';
+  const t=localStorage.getItem('fb_gh_token')||
+          sessionStorage.getItem('fb_gh_token')||
+          getCookie('fb_gh_token')||'';
+  const u=localStorage.getItem('fb_gh_username')||
+          sessionStorage.getItem('fb_gh_username')||
+          getCookie('fb_gh_username')||'';
+  /* Sync back to all stores */
+  if(t){ localStorage.setItem('fb_gh_token',t); sessionStorage.setItem('fb_gh_token',t); }
+  if(u){ localStorage.setItem('fb_gh_username',u); sessionStorage.setItem('fb_gh_username',u); }
   document.getElementById('gh-token-input').value=t;
   document.getElementById('gh-username-input').value=u;
-  if(t) document.getElementById('gh-token-status').textContent='Token saved.';
+  if(t) document.getElementById('gh-token-status').textContent='Token saved in browser.';
   updateAuthCheck();
 }
 /* Periodically re-check auth status every 2 seconds in case storage was updated */
 setInterval(()=>{
-  const t=localStorage.getItem('fb_gh_token')||'';
-  const u=localStorage.getItem('fb_gh_username')||'';
+  const t=localStorage.getItem('fb_gh_token')||sessionStorage.getItem('fb_gh_token')||getCookie('fb_gh_token')||'';
+  const u=localStorage.getItem('fb_gh_username')||sessionStorage.getItem('fb_gh_username')||getCookie('fb_gh_username')||'';
   const inp=document.getElementById('gh-token-input');
   const uinp=document.getElementById('gh-username-input');
-  if(inp&&!inp.value&&t) inp.value=t;
-  if(uinp&&!uinp.value&&u) uinp.value=u;
+  if(inp&&!inp.value&&t){ inp.value=t; localStorage.setItem('fb_gh_token',t); }
+  if(uinp&&!uinp.value&&u){ uinp.value=u; localStorage.setItem('fb_gh_username',u); }
   updateAuthCheck();
 }, 2000);
 function updateAuthCheck(){
@@ -448,8 +477,8 @@ let _publishing = false;
 
 async function publishToGitHub(){
   if(_publishing) return; /* prevent double-fire */
-  const token=localStorage.getItem('fb_gh_token')||'';
-  const username=localStorage.getItem('fb_gh_username')||'';
+  const token=localStorage.getItem('fb_gh_token')||sessionStorage.getItem('fb_gh_token')||getCookie('fb_gh_token')||'';
+  const username=localStorage.getItem('fb_gh_username')||sessionStorage.getItem('fb_gh_username')||getCookie('fb_gh_username')||'';
   const repoName=document.getElementById('pub-repo').value.trim();
   /* Confirmation dialog */
   if(repoName && !confirm(`About to publish to:\n\n"${repoName}"\n\nThis will overwrite existing files. Continue?`)) return;
