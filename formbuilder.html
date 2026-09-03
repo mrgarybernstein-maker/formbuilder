@@ -523,7 +523,6 @@ async function publishToGitHub(){
     const userInfo = await ghAPI('/user','GET');
     const actualUsername = userInfo.login;
 
-    // Check if repo already exists
     let repoExists = false;
     try {
       await ghAPI(`/repos/${actualUsername}/${repoName}`,'GET');
@@ -534,22 +533,15 @@ async function publishToGitHub(){
       stepSet('ps-create','done','Repository exists — updating files ✓');
     } else {
       stepSet('ps-create','active',`Creating repository for ${actualUsername}…`);
-      await ghAPI('/user/repos','POST',{name:repoName,description:desc,private:isPrivate,auto_init:true});
+      await ghAPI('/user/repos','POST',{name:repoName,description:desc,private:isPrivate,auto_init:false});
       stepSet('ps-create','done','Repository created ✓');
     }
-
-    // Small delay to let GitHub initialise
-    await new Promise(r=>setTimeout(r,4000)); /* wait longer for GitHub to initialize repo */
 
     // Step 2: Upload files
     stepSet('ps-files','active','Uploading files…');
 
-    // Get index.html content
     let engineContent='';
-    try{
-      const r=await fetch('index.html');
-      if(r.ok) engineContent=await r.text();
-    }catch(e){}
+    try{ const r=await fetch('index.html'); if(r.ok) engineContent=await r.text(); }catch(e){}
 
     const formJSON=JSON.stringify(buildFormJSON(),null,2);
     const themeJSON=JSON.stringify(buildThemeJSON(),null,2);
@@ -560,14 +552,31 @@ async function publishToGitHub(){
     ];
     if(engineContent) filesToUpload.push({path:'index.html', content:engineContent});
 
-    for(const f of filesToUpload){
-      stepSet('ps-files','active',`Uploading ${f.path}…`);
-      // Check if file exists (auto_init creates README.md)
-      let sha=undefined;
-      try{ const existing=await ghAPI(`/repos/${username}/${repoName}/contents/${f.path}`,'GET'); sha=existing.sha; }catch(e){}
-      const body={message:`Add ${f.path}`,content:b64(f.content)};
-      if(sha) body.sha=sha;
-      await ghAPI(`/repos/${username}/${repoName}/contents/${f.path}`,'PUT',body);
+    if(repoExists){
+      /* Existing repo - use contents API */
+      for(const f of filesToUpload){
+        stepSet('ps-files','active',`Uploading ${f.path}…`);
+        let sha=undefined;
+        try{ const ex=await ghAPI(`/repos/${actualUsername}/${repoName}/contents/${f.path}`,'GET'); sha=ex.sha; }catch(e){}
+        const body={message:`Update ${f.path}`,content:b64(f.content)};
+        if(sha) body.sha=sha;
+        await ghAPI(`/repos/${actualUsername}/${repoName}/contents/${f.path}`,'PUT',body);
+      }
+    } else {
+      /* New empty repo - use Git Data API to create first commit without race condition */
+      stepSet('ps-files','active','Creating file blobs…');
+      const treeItems=[];
+      for(const f of filesToUpload){
+        stepSet('ps-files','active',`Blob: ${f.path}…`);
+        const blob=await ghAPI(`/repos/${actualUsername}/${repoName}/git/blobs`,'POST',{content:b64(f.content),encoding:'base64'});
+        treeItems.push({path:f.path,mode:'100644',type:'blob',sha:blob.sha});
+      }
+      stepSet('ps-files','active','Building tree…');
+      const tree=await ghAPI(`/repos/${actualUsername}/${repoName}/git/trees`,'POST',{tree:treeItems});
+      stepSet('ps-files','active','Creating commit…');
+      const commit=await ghAPI(`/repos/${actualUsername}/${repoName}/git/commits`,'POST',{message:'Initial form files',tree:tree.sha,parents:[]});
+      stepSet('ps-files','active','Setting up branch…');
+      await ghAPI(`/repos/${actualUsername}/${repoName}/git/refs`,'POST',{ref:'refs/heads/main',sha:commit.sha});
     }
     stepSet('ps-files','done',`${filesToUpload.length} files uploaded ✓`);
 
