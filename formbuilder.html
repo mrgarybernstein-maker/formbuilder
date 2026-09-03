@@ -363,6 +363,10 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+    /* Refresh auth check whenever publish tab is opened */
+    if(tab.dataset.tab==='publish') updateAuthCheck();
+    /* Refresh saved forms list whenever forms tab is opened */
+    if(tab.dataset.tab==='forms') renderSavedForms();
   });
 });
 
@@ -412,6 +416,16 @@ function loadGHSettings(){
   if(t) document.getElementById('gh-token-status').textContent='Token saved.';
   updateAuthCheck();
 }
+/* Periodically re-check auth status every 2 seconds in case storage was updated */
+setInterval(()=>{
+  const t=localStorage.getItem('fb_gh_token')||'';
+  const u=localStorage.getItem('fb_gh_username')||'';
+  const inp=document.getElementById('gh-token-input');
+  const uinp=document.getElementById('gh-username-input');
+  if(inp&&!inp.value&&t) inp.value=t;
+  if(uinp&&!uinp.value&&u) uinp.value=u;
+  updateAuthCheck();
+}, 2000);
 function updateAuthCheck(){
   const t=localStorage.getItem('fb_gh_token')||'';
   const u=localStorage.getItem('fb_gh_username')||'';
@@ -437,6 +451,8 @@ async function publishToGitHub(){
   const token=localStorage.getItem('fb_gh_token')||'';
   const username=localStorage.getItem('fb_gh_username')||'';
   const repoName=document.getElementById('pub-repo').value.trim();
+  /* Confirmation dialog */
+  if(repoName && !confirm(`About to publish to:\n\n"${repoName}"\n\nThis will overwrite existing files. Continue?`)) return;
   const desc=document.getElementById('pub-desc').value.trim();
   const isPrivate=document.getElementById('pub-private').checked;
 
@@ -688,7 +704,7 @@ function renderSavedForms(){
   const all = getSavedForms();
   const keys = Object.keys(all).reverse();
   if(!keys.length){
-    list.innerHTML='<p style="font-size:13px;color:#bbb;text-align:center;padding:1rem 0">No saved forms yet</p>';
+    list.innerHTML='<p style="font-size:13px;color:#bbb;text-align:center;padding:1rem 0">No saved forms in browser.<br>Load from GitHub URL below to restore.</p>';
     return;
   }
   list.innerHTML='';
