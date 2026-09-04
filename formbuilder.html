@@ -313,12 +313,49 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
         <option value="radio">Radio buttons — pick one</option>
         <option value="checkbox">Checkboxes — pick many</option>
         <option value="dropdown">Dropdown list</option>
+        <option value="text-display">Display text (heading, instructions, note)</option>
       </select>
     </div>
     <div class="form-row" id="f-pattern-row" style="display:none">
       <label>Pattern</label>
       <input type="text" id="f-pattern" placeholder="e.g. NN-MMM-NNNN">
       <div class="hint">N = digit &nbsp;·&nbsp; A = letter &nbsp;·&nbsp; MMM = month name &nbsp;·&nbsp; - &nbsp;space&nbsp; . = separators</div>
+    </div>
+    <div id="f-text-display-row" style="display:none">
+      <div class="form-row">
+        <label>Text content</label>
+        <textarea id="f-text-content" rows="3" placeholder="Enter the text to display on the form"></textarea>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label>Size</label>
+          <select id="f-text-size">
+            <option value="small">Small (12px)</option>
+            <option value="normal" selected>Normal (14px)</option>
+            <option value="large">Large (18px)</option>
+            <option value="heading">Heading (22px bold)</option>
+            <option value="title">Title (26px bold)</option>
+          </select>
+        </div>
+        <div>
+          <label>Alignment</label>
+          <select id="f-text-align">
+            <option value="left" selected>Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Style</label>
+        <select id="f-text-style">
+          <option value="normal" selected>Normal</option>
+          <option value="muted">Muted (grey)</option>
+          <option value="info">Info (blue)</option>
+          <option value="warning">Warning (orange)</option>
+          <option value="divider">Divider line</option>
+        </select>
+      </div>
     </div>
     <div id="f-options-section" style="display:none">
       <div class="section-title">Options</div>
@@ -356,8 +393,8 @@ const PROVINCES = [
   {value:'YT',label:'YT – Yukon'}
 ];
 
-const TYPE_ICONS  = {'alpha-full':'🔤','free-full':'✏️','email':'📧','split':'🔢','address':'🏠','address-with-postal':'🏠📮','big-address':'🏘️','city-province':'🏙️','radio':'🔘','checkbox':'☑️','dropdown':'▾'};
-const TYPE_LABELS = {'alpha-full':'Letters only','free-full':'Free text','email':'Email address','split':'Segmented','address':'Address','address-with-postal':'Address + postal code','big-address':'Full address','city-province':'City + Province','radio':'Radio','checkbox':'Checkboxes','dropdown':'Dropdown'};
+const TYPE_ICONS  = {'alpha-full':'🔤','free-full':'✏️','email':'📧','split':'🔢','address':'🏠','address-with-postal':'🏠📮','big-address':'🏘️','text-display':'📝','city-province':'🏙️','radio':'🔘','checkbox':'☑️','dropdown':'▾'};
+const TYPE_LABELS = {'alpha-full':'Letters only','free-full':'Free text','email':'Email address','split':'Segmented','address':'Address','address-with-postal':'Address + postal code','big-address':'Full address','text-display':'Display text','city-province':'City + Province','radio':'Radio','checkbox':'Checkboxes','dropdown':'Dropdown'};
 
 /* ── Tabs ── */
 document.querySelectorAll('.tab').forEach(tab => {
@@ -965,6 +1002,7 @@ const FIELD_SUGGESTIONS = [
   { keys:['last name','surname','family name','nom'], type:'alpha-full', pattern:'' },
   { keys:['full name','name'],                  type:'alpha-full', pattern:'' },
   { keys:['full address','big address','complete address'], type:'big-address', pattern:'' },
+  { keys:['heading','title','note','instruction','section','divider','text'], type:'text-display', pattern:'' },
   { keys:['address with postal','full address'], type:'address-with-postal', pattern:'' },
   { keys:['address','street'],                  type:'address',    pattern:'' }, /* autocomplete */
   { keys:['city','province','ville'],           type:'city-province', pattern:'' },
@@ -1042,13 +1080,22 @@ function openEditField(idx) {
   document.getElementById('f-options-list').innerHTML='';
   onTypeChange();
   if(f.options) f.options.forEach(o=>addOption(o.label,o.value,o.required!==false));
+  if(f.type==='text-display'){
+    document.getElementById('f-text-content').value=f.textContent||'';
+    document.getElementById('f-text-size').value=f.textSize||'normal';
+    document.getElementById('f-text-align').value=f.textAlign||'left';
+    document.getElementById('f-text-style').value=f.textStyle||'normal';
+  }
   document.getElementById('field-modal').classList.add('open');
 }
 function closeModal() { document.getElementById('field-modal').classList.remove('open'); }
 function onTypeChange() {
   const t=document.getElementById('f-type').value;
-  document.getElementById('f-pattern-row').style.display    = t==='split'?'':'none';
-  document.getElementById('f-options-section').style.display= (t==='radio'||t==='checkbox')?'':'none';
+  document.getElementById('f-pattern-row').style.display      = t==='split'?'':'none';
+  document.getElementById('f-options-section').style.display  = (t==='radio'||t==='checkbox')?'':'none';
+  document.getElementById('f-text-display-row').style.display = t==='text-display'?'':'none';
+  /* Hide required checkbox for display text */
+  document.getElementById('f-required').closest('.form-row').style.display = t==='text-display'?'none':'';
 }
 function addOption(label='',value='',required=false) {
   const list=document.getElementById('f-options-list');
@@ -1071,6 +1118,13 @@ function saveField() {
   const id=(editingIdx!==null?fields[editingIdx].id:label.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'-'+Date.now().toString(36));
   const field={id,label,type,required};
   if(type==='split') field.pattern=pattern;
+  if(type==='text-display'){
+    field.textContent=document.getElementById('f-text-content').value.trim();
+    field.textSize=document.getElementById('f-text-size').value;
+    field.textAlign=document.getElementById('f-text-align').value;
+    field.textStyle=document.getElementById('f-text-style').value;
+    field.required=false;
+  }
   if(type==='radio'||type==='checkbox'){
     const rows=document.querySelectorAll('#f-options-list .option-row');
     field.options=[];
@@ -1130,6 +1184,16 @@ function refreshPreview() {
     const lbl=document.createElement('div'); lbl.className='pv-label'; lbl.textContent=f.label; lbl.style.color=labelColor;
     wrap.appendChild(lbl);
 
+    if(f.type==='text-display'){
+      const sizeMap={small:'11px',normal:'14px',large:'18px',heading:'22px',title:'26px'};
+      const styleMap={normal:{color:'var(--t-title)'},muted:{color:'#888'},info:{color:'#2a6ade'},warning:{color:'#e07a00'},divider:{borderTop:'2px solid #e0e0e0',paddingTop:'8px'}};
+      const bold=f.textSize==='heading'||f.textSize==='title';
+      const el=document.createElement('div');
+      el.style.cssText=`font-size:${sizeMap[f.textSize||'normal']};text-align:${f.textAlign||'left'};font-weight:${bold?'700':'400'};padding:4px 0;`;
+      Object.assign(el.style, styleMap[f.textStyle||'normal']||{});
+      el.textContent=f.textContent||f.label;
+      wrap.appendChild(el); continue;
+    }
     if(f.type==='alpha-full'||f.type==='free-full'||f.type==='email'){
       const inp=document.createElement('div'); inp.className='pv-input'; inp.style.cssText=`border-color:${borderColor};border-radius:${radius}px`; wrap.appendChild(inp);
     } else if(f.type==='split'){
