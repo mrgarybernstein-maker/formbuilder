@@ -1142,6 +1142,38 @@ function autoFillAddressComponents(city, province, postal){
   }
 }
 
+function buildTextDisplayField(def,container,focusChain,optionSets,register){
+  const sizeMap={small:'11px',normal:'14px',large:'18px',heading:'22px',title:'26px'};
+  const colorMap={normal:'var(--t-title)',muted:'#888888',info:'#2a6ade',warning:'#e07a00',divider:'var(--t-title)'};
+
+  const el=document.createElement('div');
+  const size=sizeMap[def.textSize||'normal']||'14px';
+  const bold=(def.textSize==='heading'||def.textSize==='title')?'700':'400';
+  const align=def.textAlign||'left';
+  const color=colorMap[def.textStyle||'normal']||'var(--t-title)';
+  el.style.cssText=`font-size:${size};font-weight:${bold};text-align:${align};color:${color};padding:6px 0;line-height:1.5;`;
+
+  if(def.textStyle==='divider'){
+    el.style.borderTop='2px solid var(--t-field-border)';
+    el.style.marginTop='8px';
+    el.style.paddingTop='12px';
+  }
+
+  el.textContent=def.textContent||def.label||'';
+  container.appendChild(el);
+
+  /* Register as no-op field — no input, no validation */
+  register(def.id,{
+    elements:[],
+    getValue:()=>'',
+    setValue:()=>{},
+    clearErrors:()=>{},
+    validate:()=>null,
+    storeKey:'reg_'+def.id,
+    populateFn:()=>{}
+  });
+}
+
 function buildAddressField(def,container,focusChain,optionSets,register){
   const row1=document.createElement('div'); row1.className='field-row'; row1.style.marginBottom='8px';
   const numInp=makeInput('seg',{type:'text',inputmode:'numeric',maxlength:'6',placeholder:'No.',autocomplete:'off',autocorrect:'off',spellcheck:'false','aria-label':'Street number',style:'width:88px;'});
@@ -1440,6 +1472,7 @@ async function init(){
       case 'free-full':     buildFullField(...args,false);   break;
       case 'email':         buildEmailField(...args);        break;
       case 'split':         buildSplitField(...args);        break;
+      case 'text-display':       buildTextDisplayField(...args);      break;
       case 'address':            buildAddressAutoField(...args);      break;
       case 'address-with-postal':  buildAddressWithPostalField(...args); break;
       case 'big-address':          buildBigAddressField(...args);        break;
@@ -1456,7 +1489,7 @@ async function init(){
     }
 
     /* Chips — not shown for radio/checkbox */
-    if(def.type!=='radio'&&def.type!=='checkbox'){
+    if(def.type!=='radio'&&def.type!=='checkbox'&&def.type!=='text-display'){
       const chips=document.createElement('div'); chips.className='chips'; chips.id='chips-'+def.id;
       group.appendChild(chips);
     }
