@@ -1185,15 +1185,19 @@ function refreshPreview() {
     wrap.appendChild(lbl);
 
     if(f.type==='text-display'){
-      const sizeMap={small:'11px',normal:'14px',large:'18px',heading:'22px',title:'26px'};
-      const sizeMap={small:'11px',normal:'14px',large:'18px',heading:'22px',title:'26px'};
-      const el=document.createElement('div');
-      el.style.cssText=`font-size:${sizeMap[f.textSize||'normal']||'14px'};text-align:${f.textAlign||'left'};font-weight:${bold?'700':'400'};padding:4px 0;line-height:1.5;`;
-      if(f.textStyle==='muted') el.style.color='#888'; else if(f.textStyle==='info') el.style.color='#2a6ade'; else if(f.textStyle==='warning') el.style.color='#e07a00'; else if(f.textStyle==='divider'){el.style.borderTop='2px solid #e0e0e0';el.style.paddingTop='8px';}
-      el.textContent=f.textContent||f.label;
-      wrap.appendChild(el);
-      wrap.appendChild(el);
+      const szMap={small:'11px',normal:'14px',large:'18px',heading:'22px',title:'26px'};
+      const isBold=f.textSize==='heading'||f.textSize==='title';
+      const tdEl=document.createElement('div');
+      tdEl.style.cssText=`font-size:${szMap[f.textSize||'normal']||'14px'};text-align:${f.textAlign||'left'};font-weight:${isBold?'700':'400'};padding:4px 0;line-height:1.5;`;
+      if(f.textStyle==='muted') tdEl.style.color='#888';
+      else if(f.textStyle==='info') tdEl.style.color='#2a6ade';
+      else if(f.textStyle==='warning') tdEl.style.color='#e07a00';
+      else if(f.textStyle==='divider'){tdEl.style.borderTop='2px solid #e0e0e0';tdEl.style.paddingTop='8px';}
+      tdEl.textContent=f.textContent||f.label;
+      wrap.appendChild(tdEl);
+      container.appendChild(wrap);
       return;
+    }
     if(f.type==='alpha-full'||f.type==='free-full'||f.type==='email'){
       const inp=document.createElement('div'); inp.className='pv-input'; inp.style.cssText=`border-color:${borderColor};border-radius:${radius}px`; wrap.appendChild(inp);
     } else if(f.type==='split'){
@@ -1203,16 +1207,18 @@ function refreshPreview() {
         else { const seg=document.createElement('div'); seg.className='pv-seg'; seg.style.cssText=`width:${tok.width}px;border-color:${borderColor};border-radius:8px`; seg.textContent=tok.placeholder; row.appendChild(seg); }
       });
       wrap.appendChild(row);
-    } else if(f.type==='address'){
+    } else if(f.type==='address'||f.type==='address-with-postal'||f.type==='big-address'){
       const addr=document.createElement('div'); addr.style.cssText='display:flex;flex-direction:column;gap:6px';
       const r1=document.createElement('div'); r1.style.cssText='display:flex;gap:6px';
       const n=document.createElement('div'); n.className='pv-seg'; n.style.cssText=`width:88px;border-color:${borderColor};border-radius:8px`; n.textContent='No.';
       const s=document.createElement('div'); s.className='pv-input'; s.style.cssText=`flex:1;border-color:${borderColor};border-radius:8px`;
       r1.appendChild(n); r1.appendChild(s); addr.appendChild(r1);
-      const r2=document.createElement('div'); r2.style.cssText='display:flex;gap:6px';
-      const u=document.createElement('div'); u.className='pv-seg'; u.style.cssText=`width:110px;border-color:${borderColor};border-radius:8px`; u.textContent='Apt/Unit';
-      const oh=document.createElement('span'); oh.style.cssText='font-size:12px;color:#bbb;padding-left:4px;align-self:center'; oh.textContent='optional';
-      r2.appendChild(u); r2.appendChild(oh); addr.appendChild(r2);
+      if(f.type==='big-address'||f.type==='address-with-postal'){
+        const r2=document.createElement('div'); r2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px';
+        const c=document.createElement('div'); c.className='pv-input'; c.style.cssText=`border-color:${borderColor};border-radius:8px`;
+        const p=document.createElement('div'); p.className='pv-input'; p.style.cssText=`border-color:${borderColor};border-radius:8px`;
+        r2.appendChild(c); r2.appendChild(p); addr.appendChild(r2);
+      }
       wrap.appendChild(addr);
     } else if(f.type==='city-province'){
       const r=document.createElement('div'); r.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px';
