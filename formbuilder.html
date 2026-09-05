@@ -1186,14 +1186,14 @@ function refreshPreview() {
 
     if(f.type==='text-display'){
       const sizeMap={small:'11px',normal:'14px',large:'18px',heading:'22px',title:'26px'};
-      const styleMap={normal:{color:'var(--t-title)'},muted:{color:'#888'},info:{color:'#2a6ade'},warning:{color:'#e07a00'},divider:{borderTop:'2px solid #e0e0e0',paddingTop:'8px'}};
-      const bold=f.textSize==='heading'||f.textSize==='title';
+      const sizeMap={small:'11px',normal:'14px',large:'18px',heading:'22px',title:'26px'};
       const el=document.createElement('div');
-      el.style.cssText=`font-size:${sizeMap[f.textSize||'normal']};text-align:${f.textAlign||'left'};font-weight:${bold?'700':'400'};padding:4px 0;`;
-      Object.assign(el.style, styleMap[f.textStyle||'normal']||{});
+      el.style.cssText=`font-size:${sizeMap[f.textSize||'normal']||'14px'};text-align:${f.textAlign||'left'};font-weight:${bold?'700':'400'};padding:4px 0;line-height:1.5;`;
+      if(f.textStyle==='muted') el.style.color='#888'; else if(f.textStyle==='info') el.style.color='#2a6ade'; else if(f.textStyle==='warning') el.style.color='#e07a00'; else if(f.textStyle==='divider'){el.style.borderTop='2px solid #e0e0e0';el.style.paddingTop='8px';}
       el.textContent=f.textContent||f.label;
-      wrap.appendChild(el); continue;
-    }
+      wrap.appendChild(el);
+      wrap.appendChild(el);
+      return;
     if(f.type==='alpha-full'||f.type==='free-full'||f.type==='email'){
       const inp=document.createElement('div'); inp.className='pv-input'; inp.style.cssText=`border-color:${borderColor};border-radius:${radius}px`; wrap.appendChild(inp);
     } else if(f.type==='split'){
