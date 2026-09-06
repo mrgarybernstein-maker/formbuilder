@@ -13,8 +13,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .topbar h1{color:#fff;font-size:16px;font-weight:600;flex:1}
 .sidebar{background:#fff;border-right:1px solid #e0e0e0;overflow-y:auto;display:flex;flex-direction:column}
 .preview-pane{background:#f0f2f5;overflow-y:auto;padding:2rem;display:flex;flex-direction:column;align-items:center}
-.tabs{display:flex;border-bottom:1px solid #e8e8e8;background:#fafafa;flex-shrink:0;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
-.tab{padding:12px 14px;font-size:13px;font-weight:500;color:#888;cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;white-space:nowrap}
+.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #e8e8e8;background:#fafafa;flex-shrink:0;}
+.tab{padding:9px 12px;font-size:13px;font-weight:500;color:#888;cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;white-space:nowrap}
 .tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a}
 .tab-panel{display:none;padding:1rem}
 .tab-panel.active{display:block}
@@ -100,6 +100,12 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
 .url-result-label{font-size:11px;color:#2a9a5a;font-weight:600;margin-bottom:6px}
 .url-result-link{font-size:14px;font-weight:600;color:#1a5fa8;word-break:break-all;text-decoration:none}
 .url-result-link:hover{text-decoration:underline}
+.update-repo-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fafafa;border:1.5px solid #e8e8e8;border-radius:8px;margin-bottom:6px;font-size:13px;}
+.update-repo-status{margin-left:auto;font-size:12px;font-weight:500;white-space:nowrap;}
+.update-repo-status.ok{color:#2a9a5a}
+.update-repo-status.err{color:#e05252}
+.update-repo-status.pending{color:#aaa}
+.update-repo-status.active{color:#2a6ade}
 .saved-form-item{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#fafafa;border:1.5px solid #e8e8e8;border-radius:10px;margin-bottom:6px}
 .saved-form-name{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .saved-form-date{font-size:11px;color:#aaa;flex-shrink:0}
@@ -221,6 +227,12 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
         <button class="btn btn-ghost btn-sm" onclick="downloadEngine()">Download</button>
       </div>
       <div style="margin-top:12px"><button class="btn btn-green btn-full" onclick="downloadAll()">⬇️ Download all three</button></div>
+      <div style="margin-top:20px;border-top:1px solid #f0f0f0;padding-top:16px;">
+        <div class="section-title">Update existing repos</div>
+        <p class="hint" style="margin-bottom:10px">Push the latest index.html engine to all your existing form repositories without changing their form.json or theme.json.</p>
+        <button class="btn btn-blue btn-full" onclick="updateAllRepos()">🔄 Update all repos with latest engine</button>
+        <div id="update-repos-list" style="margin-top:12px;display:none"></div>
+      </div>
     </div>
 
     <!-- PUBLISH -->
@@ -659,6 +671,95 @@ async function publishToGitHub(){
     alert('Publish failed: '+e.message);
     btn.disabled=false; btn.textContent='🚀 Publish to GitHub';
     _publishing=false;
+  }
+}
+
+async function updateAllRepos(){
+  const token=localStorage.getItem('fb_gh_token')||sessionStorage.getItem('fb_gh_token')||getCookie('fb_gh_token')||'';
+  const username=localStorage.getItem('fb_gh_username')||sessionStorage.getItem('fb_gh_username')||getCookie('fb_gh_username')||'';
+  if(!token||!username){alert('Please enter your GitHub token and username in Settings first.');return;}
+
+  const listEl=document.getElementById('update-repos-list');
+  listEl.style.display='block';
+  listEl.innerHTML='<p style="font-size:13px;color:#888;margin-bottom:8px">Fetching your repositories…</p>';
+
+  const ghAPI=async(path,method,body)=>{
+    const r=await fetch('https://api.github.com'+path,{
+      method,
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
+      body:body?JSON.stringify(body):undefined
+    });
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.message||'GitHub API error');
+    return d;
+  };
+  const b64=str=>btoa(unescape(encodeURIComponent(str)));
+
+  try {
+    /* Get all repos */
+    const repos=await ghAPI(`/user/repos?per_page=100&sort=updated`,'GET');
+    
+    /* Filter to only repos that have index.html (form repos) — skip formbuilder itself */
+    const formRepos=[];
+    for(const repo of repos){
+      if(repo.name==='formbuilder') continue;
+      try{
+        await ghAPI(`/repos/${username}/${repo.name}/contents/index.html`,'GET');
+        formRepos.push(repo.name);
+      }catch(e){ /* no index.html - skip */ }
+    }
+
+    if(!formRepos.length){
+      listEl.innerHTML='<p style="font-size:13px;color:#888">No form repositories found.</p>';
+      return;
+    }
+
+    /* Render list */
+    listEl.innerHTML='';
+    const statusEls={};
+    formRepos.forEach(name=>{
+      const row=document.createElement('div'); row.className='update-repo-item';
+      const nameEl=document.createElement('span'); nameEl.textContent=name;
+      const statusEl=document.createElement('span'); statusEl.className='update-repo-status pending'; statusEl.textContent='Waiting…';
+      statusEls[name]=statusEl;
+      row.appendChild(nameEl); row.appendChild(statusEl);
+      listEl.appendChild(row);
+    });
+
+    /* Get latest index.html from formbuilder repo */
+    let engineContent='';
+    try{
+      const r=await fetch('index.html');
+      if(r.ok) engineContent=await r.text();
+    }catch(e){}
+
+    if(!engineContent){
+      listEl.innerHTML='<p style="font-size:13px;color:#e05252">Could not fetch index.html from formbuilder repo. Make sure it is uploaded there first.</p>';
+      return;
+    }
+
+    /* Update each repo */
+    for(const name of formRepos){
+      statusEls[name].className='update-repo-status active';
+      statusEls[name].textContent='Updating…';
+      try{
+        /* Get current SHA */
+        const existing=await ghAPI(`/repos/${username}/${name}/contents/index.html`,'GET');
+        await ghAPI(`/repos/${username}/${name}/contents/index.html`,'PUT',{
+          message:'Update form engine to latest version',
+          content:b64(engineContent),
+          sha:existing.sha
+        });
+        statusEls[name].className='update-repo-status ok';
+        statusEls[name].textContent='✓ Updated';
+      }catch(e){
+        statusEls[name].className='update-repo-status err';
+        statusEls[name].textContent='✗ '+e.message;
+      }
+    }
+
+  }catch(e){
+    listEl.innerHTML=`<p style="font-size:13px;color:#e05252">Error: ${e.message}</p>`;
   }
 }
 
@@ -1117,10 +1218,10 @@ function saveField() {
   const type=document.getElementById('f-type').value;
   const pattern=document.getElementById('f-pattern').value.trim();
   const required=document.getElementById('f-required').checked;
-  if(!label&&type!=='text-display'){alert('Please enter a label');return;}
+  if(!label.trim()&&type!=='text-display'){alert('Please enter a label');return;}
   if(type==='split'&&!pattern){alert('Please enter a pattern');return;}
   /* For text-display use a space as label if empty */
-  const finalLabel = (type==='text-display'&&!label.trim()) ? ' ' : label;
+  const finalLabel = type==='text-display' ? (label.trim()||' ') : label;
   const id=(editingIdx!==null?fields[editingIdx].id:(finalLabel||label).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'-'+Date.now().toString(36));
   const field={id,label:finalLabel||label,type,required};
   if(type==='split') field.pattern=pattern;
