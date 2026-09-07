@@ -142,6 +142,7 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
       <div class="form-row"><label>Form title</label><input type="text" id="form-title" value="My Form" oninput="refreshPreview()"></div>
       <div class="form-row"><label>Subtitle</label><input type="text" id="form-subtitle" value="Please fill in all fields" oninput="refreshPreview()"></div>
       <div class="form-row"><label>Submit button label</label><input type="text" id="form-submit-label" value="Submit" oninput="refreshPreview()"></div>
+      <div class="form-row"><label>Google Sheets URL (optional)</label><input type="text" id="form-sheets-url" placeholder="https://script.google.com/macros/s/..."><div class="hint">Paste your Apps Script Web App URL to save submissions to Google Sheets</div></div>
       <div class="section-title">Fields</div>
       <div class="field-list" id="field-list"></div>
       <button class="btn btn-ghost btn-full" onclick="openAddField()">+ Add field</button>
@@ -835,6 +836,7 @@ function applyFormState(state){
   document.getElementById('form-title').value       = state.title||'';
   document.getElementById('form-subtitle').value    = state.subtitle||'';
   document.getElementById('form-submit-label').value= state.submitLabel||'Submit';
+  document.getElementById('form-sheets-url').value  = state.sheetsURL||'';
   fields = state.fields||[];
   if(state.theme){
     const t=state.theme;
@@ -1453,6 +1455,7 @@ function buildFormJSON(){
     title:document.getElementById('form-title').value,
     subtitle:document.getElementById('form-subtitle').value,
     submitLabel:document.getElementById('form-submit-label').value,
+    sheetsURL:document.getElementById('form-sheets-url').value.trim()||undefined,
     fields:fields.map(f=>{ const o={id:f.id,label:f.label,type:f.type,required:f.required!==false}; if(f.pattern) o.pattern=f.pattern; if(f.options) o.options=f.options; if(f.type==='text-display'){ if(f.textContent) o.textContent=f.textContent; if(f.textSize) o.textSize=f.textSize; if(f.textAlign) o.textAlign=f.textAlign; if(f.textStyle) o.textStyle=f.textStyle; } if(f.confirmOf) o.confirmOf=f.confirmOf; return o; }),
     optionSets:{provinces:PROVINCES}
   };
