@@ -590,7 +590,17 @@ async function publishToGitHub(){
     stepSet('ps-files','active','Preparing files…');
 
     let engineContent='';
-    try{ const r=await fetch('index.html'); if(r.ok) engineContent=await r.text(); }catch(e){}
+    try{
+      const r=await fetch('index.html');
+      if(r.ok){
+        const text=await r.text();
+        /* Safety check: make sure we're uploading the form ENGINE not the formbuilder */
+        if(text.includes('<title>Form Builder</title>')){
+          throw new Error('index.html in the formbuilder repo appears to be the Form Builder itself, not the form engine. Please upload the correct index.html (form engine) to the formbuilder repo first.');
+        }
+        engineContent=text;
+      }
+    }catch(e){ if(e.message.includes('form engine')) throw e; }
 
     const filesToUpload=[
       {path:'form.json',  content:JSON.stringify(buildFormJSON(),null,2)},
