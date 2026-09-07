@@ -1,4 +1,4 @@
-<!-- Modified September 06, 2026 -->
+<!-- Modified September 07, 2026 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -655,13 +655,15 @@ async function publishToGitHub(){
     urlResult.style.display='block';
     btn.disabled=false; btn.textContent='🚀 Publish to GitHub';
     _publishing=false;
-    /* Save repo name to current form in browser storage */
+    /* Auto-save form to browser storage after successful publish */
+    saveCurrentForm();
+    /* Update repo name in saved form */
     if(currentFormKey){
       const all=getSavedForms();
       if(all[currentFormKey]){ all[currentFormKey].repoName=repoName; putSavedForms(all); }
     }
-    /* Clear repo name and description after successful publish */
-    document.getElementById('pub-repo').value='';
+    /* Keep repo name visible so user knows what was just published */
+    /* Only clear description */
     document.getElementById('pub-desc').value='';
 
   }catch(e){
