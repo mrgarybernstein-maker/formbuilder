@@ -1,4 +1,4 @@
-<!-- Modified September 08, 2026 -->
+<!-- Modified September 08, 2026 16:50 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1584,6 +1584,27 @@ async function init(){
     renderAll();
     const parts=(formDef.fields||[]).map(def=>{ const reg=fieldRegistry[def.id]; if(!reg) return null; return(reg.displayValue?reg.displayValue():reg.getValue())||null; }).filter(Boolean);
     showMsg('Saved: '+parts.join(' · '),'ok');
+
+    /* Send to Google Sheets if sheetsURL configured in form.json */
+    const sheetsURL = formDef.sheetsURL || '';
+    if(sheetsURL){
+      const submissionData = {};
+      (formDef.fields||[]).forEach(def=>{
+        const reg=fieldRegistry[def.id]; if(!reg) return;
+        if(def.type==='text-display') return;
+        const val=(reg.displayValue?reg.displayValue():reg.getValue())||'';
+        if(val) submissionData[def.label||def.id]=val;
+      });
+      console.log('Sending to sheets:', sheetsURL, submissionData);
+      const params = new URLSearchParams();
+      params.append('data', JSON.stringify(submissionData));
+      fetch(sheetsURL, {
+        method:'POST',
+        mode:'no-cors',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: params.toString()
+      }).catch(e=>console.log('Sheets error:',e));
+    }
     Object.values(fieldRegistry).forEach(reg=>{
       reg.elements.forEach(el=>{ if(el.tagName==='INPUT'||el.tagName==='SELECT') el.value=''; else el.classList.remove('selected','checked'); });
       clearFieldError(reg.storeKey.replace('reg_',''));
