@@ -1,4 +1,4 @@
-<!-- Modified September 14, 2026 20:56 -->
+<!-- Modified September 14, 2026 21:33 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -292,6 +292,11 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
       <div class="form-row"><label>GitHub Token</label><input type="password" id="gh-token-input" placeholder="ghp_..." oninput="saveGHToken()"></div>
       <div class="form-row"><label>GitHub Username</label><input type="text" id="gh-username-input" placeholder="yourusername" oninput="saveGHUsername()"></div>
       <div id="gh-token-status" class="hint"></div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" onclick="saveConfigToGitHub()" style="flex:1">☁️ Save credentials to GitHub</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadConfigFromGitHub()" style="flex:1">🔄 Restore from GitHub</button>
+      </div>
+      <div id="config-status" class="hint" style="margin-top:6px"></div>
     </div>
 
   </div>
@@ -826,6 +831,149 @@ function restoreBackup(input){
     input.value = '';
   };
   reader.readAsText(file);
+}
+
+/* ── Config.json credential storage ── */
+async function saveConfigToGitHub(){
+  const token    = localStorage.getItem('fb_gh_token')||sessionStorage.getItem('fb_gh_token')||getCookie('fb_gh_token')||'';
+  const username = localStorage.getItem('fb_gh_username')||sessionStorage.getItem('fb_gh_username')||getCookie('fb_gh_username')||'';
+  const apiKey   = localStorage.getItem('fb_api_key')||sessionStorage.getItem('fb_api_key')||getCookie('fb_api_key')||'';
+  const statusEl = document.getElementById('config-status');
+
+  if(!token||!username){ alert('Please enter your GitHub token and username first.'); return; }
+
+  statusEl.textContent = 'Saving to GitHub…';
+
+  const config = { gh_token: token, gh_username: username, api_key: apiKey };
+  const b64 = str => btoa(unescape(encodeURIComponent(str)));
+
+  try {
+    const headers = {
+      'Authorization': 'Bearer '+token,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+
+    /* Check if config.json already exists */
+    let sha = undefined;
+    try {
+      const r = await fetch(`https://api.github.com/repos/${username}/formbuilder/contents/config.json`, {headers});
+      if(r.ok){ const d = await r.json(); sha = d.sha; }
+    } catch(e){}
+
+    const body = { message:'Update config', content: b64(JSON.stringify(config, null, 2)) };
+    if(sha) body.sha = sha;
+
+    const r = await fetch(`https://api.github.com/repos/${username}/formbuilder/contents/config.json`, {
+      method:'PUT', headers, body: JSON.stringify(body)
+    });
+
+    if(r.ok){
+      statusEl.textContent = '✓ Credentials saved to GitHub successfully';
+      statusEl.style.color = '#2a9a5a';
+    } else {
+      const d = await r.json();
+      throw new Error(d.message);
+    }
+  } catch(e) {
+    statusEl.textContent = '✗ Error: ' + e.message;
+    statusEl.style.color = '#e05252';
+  }
+}
+
+async function loadConfigFromGitHub(){
+  const statusEl = document.getElementById('config-status');
+  /* Try to find username from any storage */
+  const username = localStorage.getItem('fb_gh_username')||
+                   sessionStorage.getItem('fb_gh_username')||
+                   getCookie('fb_gh_username')||
+                   document.getElementById('gh-username-input').value.trim();
+
+  if(!username){ 
+    statusEl.textContent = 'Enter your GitHub username first, then click Restore.';
+    statusEl.style.color = '#e05252';
+    return; 
+  }
+
+  statusEl.textContent = 'Loading from GitHub…';
+  statusEl.style.color = '#888';
+
+  try {
+    /* Try to load config.json without auth first (public repo) */
+    const r = await fetch(`https://raw.githubusercontent.com/${username}/formbuilder/main/config.json`);
+    if(!r.ok) throw new Error('config.json not found — save credentials first');
+    
+    const config = await r.json();
+
+    if(config.gh_token){
+      localStorage.setItem('fb_gh_token', config.gh_token);
+      sessionStorage.setItem('fb_gh_token', config.gh_token);
+      setCookie('fb_gh_token', config.gh_token);
+      document.getElementById('gh-token-input').value = config.gh_token;
+      document.getElementById('gh-token-status').textContent = 'Token saved in browser.';
+    }
+    if(config.gh_username){
+      localStorage.setItem('fb_gh_username', config.gh_username);
+      sessionStorage.setItem('fb_gh_username', config.gh_username);
+      setCookie('fb_gh_username', config.gh_username);
+      document.getElementById('gh-username-input').value = config.gh_username;
+    }
+    if(config.api_key){
+      localStorage.setItem('fb_api_key', config.api_key);
+      sessionStorage.setItem('fb_api_key', config.api_key);
+      setCookie('fb_api_key', config.api_key);
+      document.getElementById('api-key-input').value = config.api_key;
+      updateAPIBadge(config.api_key);
+    }
+
+    updateAuthCheck();
+    statusEl.textContent = '✓ Credentials restored from GitHub';
+    statusEl.style.color = '#2a9a5a';
+
+  } catch(e) {
+    statusEl.textContent = '✗ ' + e.message;
+    statusEl.style.color = '#e05252';
+  }
+}
+
+/* Auto-load config on startup */
+async function autoLoadConfig(){
+  const username = localStorage.getItem('fb_gh_username')||
+                   sessionStorage.getItem('fb_gh_username')||
+                   getCookie('fb_gh_username')||'';
+  if(!username) return;
+  
+  /* Only auto-load if tokens are missing */
+  const token = localStorage.getItem('fb_gh_token')||'';
+  if(token) return;
+
+  try {
+    const r = await fetch(`https://raw.githubusercontent.com/${username}/formbuilder/main/config.json`);
+    if(!r.ok) return;
+    const config = await r.json();
+    if(config.gh_token){
+      localStorage.setItem('fb_gh_token', config.gh_token);
+      sessionStorage.setItem('fb_gh_token', config.gh_token);
+      setCookie('fb_gh_token', config.gh_token);
+      document.getElementById('gh-token-input').value = config.gh_token;
+    }
+    if(config.gh_username){
+      localStorage.setItem('fb_gh_username', config.gh_username);
+      sessionStorage.setItem('fb_gh_username', config.gh_username);
+      setCookie('fb_gh_username', config.gh_username);
+      document.getElementById('gh-username-input').value = config.gh_username;
+    }
+    if(config.api_key){
+      localStorage.setItem('fb_api_key', config.api_key);
+      sessionStorage.setItem('fb_api_key', config.api_key);
+      setCookie('fb_api_key', config.api_key);
+      document.getElementById('api-key-input').value = config.api_key;
+      updateAPIBadge(config.api_key);
+    }
+    updateAuthCheck();
+    console.log('Credentials auto-restored from config.json');
+  } catch(e) { /* silent fail */ }
 }
 
 function copyURL(){
@@ -1568,6 +1716,7 @@ loadAPIKey();
 loadGHSettings();
 renderFieldList();
 renderSavedForms();
+autoLoadConfig();
 refreshPreview();
 </script>
 <script>
