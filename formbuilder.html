@@ -1,4 +1,4 @@
-<!-- Modified September 14, 2026 21:39 -->
+<!-- Modified September 14, 2026 22:13 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1049,6 +1049,7 @@ function getCurrentFormState(){
     title: document.getElementById('form-title').value,
     subtitle: document.getElementById('form-subtitle').value,
     submitLabel: document.getElementById('form-submit-label').value,
+    sheetsURL: document.getElementById('form-sheets-url').value.trim(),
     fields: JSON.parse(JSON.stringify(fields)),
     theme: {
       bg: document.getElementById('th-bg').value,
