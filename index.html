@@ -1,4 +1,4 @@
-<!-- Modified September 08, 2026 16:50 -->
+<!-- Modified September 14, 2026 20:52 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -427,6 +427,8 @@ function buildSplitField(def,container,focusChain,optionSets,register){
 
         /* Auto-calculate age if an age field exists */
         if(window._autoFillAge) window._autoFillAge(mon, day, yr);
+        /* Auto-fill RAMQ if possible */
+        if(window._autoFillRAMQ) window._autoFillRAMQ();
       });
       el.addEventListener('focus',()=>{ clearErr(el); clearFieldError(def.id); });
     }
@@ -1430,6 +1432,74 @@ async function init(){
   const fieldRegistry={}; const focusChain=[];
   window._fieldRegistry=fieldRegistry; /* for address autocomplete */
   function register(id,obj){ fieldRegistry[id]=obj; }
+
+  /* Auto-fill RAMQ from last name, first name, DOB, sex */
+  window._autoFillRAMQ = function autoFillRAMQ(){
+    const fields2 = formDef.fields||[];
+
+    /* Find relevant fields by label */
+    function findField(keywords){
+      for(const def of fields2){
+        const lbl=(def.label||'').toLowerCase();
+        if(keywords.some(k=>lbl.includes(k))){
+          const reg=fieldRegistry[def.id];
+          if(reg) return reg.getValue().trim();
+        }
+      }
+      return '';
+    }
+
+    const lastName  = findField(['last name','surname','family name','nom de famille','nom']);
+    const firstName = findField(['first name','given name','prénom','prenom']);
+    const dob       = findField(['date of birth','dob','birth date','birthday','naissance']);
+    const sex       = findField(['sex','gender','sexe']);
+
+    if(!lastName||!firstName||!dob) return;
+
+    /* Build name portion — first 3 of last + first 1 of first, uppercase */
+    const lastClean  = lastName.replace(/[^a-zA-ZÀ-ÿ]/g,'').toUpperCase().padEnd(3,'X');
+    const firstClean = firstName.replace(/[^a-zA-ZÀ-ÿ]/g,'').toUpperCase().padEnd(1,'X');
+    const namePart   = (lastClean.substring(0,3) + firstClean.substring(0,1)).toUpperCase();
+
+    /* Parse DOB — expects NN-MMM-NNNN format */
+    const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const dobParts = dob.split(/[-\s]/);
+    if(dobParts.length < 3) return;
+    const dobDay   = dobParts[0].padStart(2,'0');
+    const dobMon   = MONTHS.indexOf(dobParts[1].toUpperCase().substring(0,3));
+    const dobYear  = dobParts[2];
+    if(dobMon===-1||!dobYear||dobYear.length<4) return;
+
+    const yy  = dobYear.substring(2,4);
+    const mm  = String(dobMon+1).padStart(2,'0');
+    const dd  = dobDay.padStart(2,'0');
+
+    /* Sex: females add 50 to month */
+    const isFemale = sex.toLowerCase().includes('f') ||
+                     sex.toLowerCase().includes('female') ||
+                     sex.toLowerCase().includes('femme');
+    const monthNum = isFemale ? String(parseInt(mm)+50).padStart(2,'0') : mm;
+
+    /* Full RAMQ prefix: AAAA YY MM DD */
+    const ramqPrefix = namePart + yy + monthNum + dd;
+
+    /* Find RAMQ field and fill segments */
+    for(const def of fields2){
+      const lbl=(def.label||'').toLowerCase();
+      if(!(lbl.includes('ramq')||lbl.includes('health card')||lbl.includes('carte soleil')||lbl.includes('health insurance'))) continue;
+      if(def.type!=='split') continue;
+      const reg=fieldRegistry[def.id]; if(!reg) continue;
+
+      /* Get current value to preserve sequence number (last 2 digits) */
+      const current = reg.getValue().replace(/\s/g,'');
+      const seq = current.length>=12 ? current.substring(10,12) : '';
+
+      /* Build full value: AAAA NNNNNN NN */
+      const fullValue = ramqPrefix + seq;
+      reg.setValue(fullValue);
+      break;
+    }
+  };
 
   /* Auto-fill age from DOB */
   window._autoFillAge = function autoFillAge(mon, day, yr){
