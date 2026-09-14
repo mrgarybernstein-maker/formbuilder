@@ -1,4 +1,4 @@
-<!-- Modified September 07, 2026 -->
+<!-- Modified September 14, 2026 20:56 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -776,6 +776,58 @@ async function updateAllRepos(){
   }
 }
 
+function exportAllForms(){
+  const all = getSavedForms();
+  if(!Object.keys(all).length){
+    alert('No saved forms to backup.');
+    return;
+  }
+  const backup = {
+    version: 1,
+    exportedAt: new Date().toLocaleString(),
+    forms: all
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'formbuilder-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function restoreBackup(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const backup = JSON.parse(e.target.result);
+      let forms = {};
+      if(backup.forms){
+        /* New backup format */
+        forms = backup.forms;
+      } else if(backup.fields){
+        /* Single form.json */
+        alert('This is a single form file, not a backup. Use "Import file" instead.');
+        return;
+      } else {
+        /* Try treating it as a raw saved forms object */
+        forms = backup;
+      }
+      const existing = getSavedForms();
+      const merged = {...existing, ...forms};
+      putSavedForms(merged);
+      renderSavedForms();
+      const count = Object.keys(forms).length;
+      alert(`✅ Restored ${count} form${count!==1?'s':''} from backup.`);
+    } catch(err) {
+      alert('Could not read backup file: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
 function copyURL(){
   const url=document.getElementById('pub-url-link').href;
   navigator.clipboard.writeText(url).then(()=>alert('URL copied to clipboard!'));
@@ -799,10 +851,24 @@ function newForm(){
 const FORMS_KEY = 'fb_saved_forms';
 
 function getSavedForms(){
-  try{ return JSON.parse(localStorage.getItem(FORMS_KEY)||'{}'); }catch(e){ return {}; }
+  try{
+    const ls = localStorage.getItem(FORMS_KEY);
+    if(ls) return JSON.parse(ls);
+    /* Try sessionStorage */
+    const ss = sessionStorage.getItem(FORMS_KEY);
+    if(ss){ localStorage.setItem(FORMS_KEY,ss); return JSON.parse(ss); }
+    /* Try cookie */
+    const ck = getCookie(FORMS_KEY);
+    if(ck){ localStorage.setItem(FORMS_KEY,ck); return JSON.parse(ck); }
+    return {};
+  }catch(e){ return {}; }
 }
 function putSavedForms(obj){
-  try{ localStorage.setItem(FORMS_KEY, JSON.stringify(obj)); }catch(e){}
+  try{ 
+    localStorage.setItem(FORMS_KEY, JSON.stringify(obj));
+    sessionStorage.setItem(FORMS_KEY, JSON.stringify(obj));
+    setCookie(FORMS_KEY, JSON.stringify(obj), 365);
+  }catch(e){}
 }
 
 function getCurrentFormState(){
@@ -1503,6 +1569,15 @@ loadGHSettings();
 renderFieldList();
 renderSavedForms();
 refreshPreview();
+</script>
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js')
+        .then(reg=>console.log('SW registered'))
+        .catch(err=>console.log('SW error:', err));
+    });
+  }
 </script>
 </body>
 </html>
