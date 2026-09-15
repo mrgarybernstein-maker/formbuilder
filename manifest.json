@@ -1,5 +1,5 @@
 {
-  "_modified": "September 15, 2026 01:34",
+  "_modified": "September 15, 2026 22:53",
   "name": "Form Builder",
   "short_name": "FormBuilder",
   "description": "Smart mobile-friendly form builder with AI import and GitHub publishing",
@@ -64,5 +64,6 @@
         }
       ]
     }
-  ]
+  ],
+  "id": "/formbuilder/formbuilder.html"
 }
