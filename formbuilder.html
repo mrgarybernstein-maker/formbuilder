@@ -1,4 +1,4 @@
-<!-- Modified September 15, 2026 00:43 -->
+<!-- Modified September 15, 2026 23:58 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -604,14 +604,23 @@ async function publishToGitHub(){
 
     let engineContent='';
     try{
-      const r=await fetch('index.html');
-      if(r.ok){
-        const text=await r.text();
-        /* Safety check: make sure we're uploading the form ENGINE not the formbuilder */
-        if(text.includes('<title>Form Builder</title>')){
-          throw new Error('index.html in the formbuilder repo appears to be the Form Builder itself, not the form engine. Please upload the correct index.html (form engine) to the formbuilder repo first.');
-        }
-        engineContent=text;
+      /* Try relative URL first, then absolute GitHub URL */
+      const engineURLs = [
+        'index.html',
+        `https://raw.githubusercontent.com/${actualUsername}/formbuilder/main/index.html`
+      ];
+      for(const url of engineURLs){
+        try{
+          const r=await fetch(url);
+          if(r.ok){
+            const text=await r.text();
+            if(text.includes('<title>Form Builder</title>')){
+              throw new Error('index.html in the formbuilder repo appears to be the Form Builder itself, not the form engine. Please upload the correct index.html (form engine) to the formbuilder repo first.');
+            }
+            engineContent=text;
+            break;
+          }
+        }catch(e2){ if(e2.message.includes('form engine')) throw e2; }
       }
     }catch(e){ if(e.message.includes('form engine')) throw e; }
 
