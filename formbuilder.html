@@ -694,9 +694,7 @@ async function publishToGitHub(){
       const all=getSavedForms();
       if(all[currentFormKey]){ all[currentFormKey].repoName=repoName; putSavedForms(all); }
     }
-    /* Keep repo name visible so user knows what was just published */
-    /* Only clear description */
-    document.getElementById('pub-desc').value='';
+    /* Keep repo name and description visible so user knows what was just published */
 
   }catch(e){
     const steps=['ps-create','ps-files','ps-pages','ps-live'];
