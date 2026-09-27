@@ -1,4 +1,4 @@
-<!-- Modified September 15, 2026 23:58 -->
+<!-- Modified September 22, 2026 22:30 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1092,7 +1092,10 @@ function applyFormState(state){
   document.getElementById('form-title').value       = state.title||'';
   document.getElementById('form-subtitle').value    = state.subtitle||'';
   document.getElementById('form-submit-label').value= state.submitLabel||'Submit';
-  document.getElementById('form-sheets-url').value  = state.sheetsURL||'';
+  /* Only populate Sheets URL if the user hasn't already entered one */
+  if(!document.getElementById('form-sheets-url').value.trim()) {
+    document.getElementById('form-sheets-url').value = state.sheetsURL||'';
+  }
   fields = state.fields||[];
   if(state.theme){
     const t=state.theme;
@@ -1668,8 +1671,9 @@ async function runAIImport(){
   document.getElementById('ai-thinking').classList.add('active');
 
   const systemPrompt=`You are a form field analyser. Return ONLY valid JSON, no markdown, no explanation. Structure:
-{"title":"...","subtitle":"...","fields":[{"id":"short-id","label":"...","type":"alpha-full|free-full|split|address|city-province|radio|checkbox|dropdown","pattern":"NN-MMM-NNNN","required":true,"options":[{"value":"val","label":"Label","required":true}]}]}
-Types: alpha-full=letters only, free-full=any text, email=email address (special keyboard), split=segmented with pattern (N=digit A=letter MMM=month - space .=separators), address=street number+name+unit, city-province=city+province dropdown, radio=pick one, checkbox=pick many, dropdown=select list.
+{"title":"...","subtitle":"...","fields":[{"id":"short-id","label":"...","type":"alpha-full|free-full|email|split|address|address-with-postal|big-address|city-province|radio|checkbox|dropdown|text-display","pattern":"NN-MMM-NNNN","required":true,"options":[{"value":"val","label":"Label","required":true}]}]}
+Types: alpha-full=letters only, free-full=any text, email=email address (special keyboard), split=segmented with pattern (N=digit A=letter MMM=month - space .=separators), address=street number+name+unit only, address-with-postal=street+city+province+postal all in one field group, big-address=full address block (street, apt, city, province, postal with Google autocomplete), city-province=city+province dropdown, radio=pick one, checkbox=pick many, dropdown=select list, text-display=non-input heading or instruction text (no label needed, add textContent property).
+IMPORTANT: Use big-address (not address) when a full mailing address is needed. Use address-with-postal for compact address+postal. Type names are case-sensitive and must be exactly as listed above.
 Common patterns: phone=NNN NNN NNNN, date=NN-MMM-NNNN, postal=ANA NAN, SIN=NNN NNN NNN, RAMQ=AAAA NNNNNN NN.
 IMPORTANT: Always use type=email for any email field. Always use type=split with pattern NNN NNN NNNN for any phone/mobile/telephone field. Always use type=split with pattern NN-MMM-NNNN for any date of birth field. Always use type=split with pattern NN for any age field. If there are two consecutive email fields where the second appears to be a confirmation, set the second field's id to end with '-confirm' and add a 'confirmOf' property set to the first email field's id, e.g. {"id":"email-confirm","label":"Email confirmation","type":"email","confirmOf":"email","required":true}.
 Only include pattern for split. Only include options for radio/checkbox.${instructions?'\nExtra: '+instructions:''}`;
@@ -1687,7 +1691,7 @@ Only include pattern for split. Only include options for radio/checkbox.${instru
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true'
       },
-      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,system:systemPrompt,messages})
+      body:JSON.stringify({model:'claude-sonnet-4-5-20250514',max_tokens:2000,system:systemPrompt,messages})
     });
     if(!response.ok){ const e=await response.json(); throw new Error(e.error?.message||`HTTP ${response.status}`); }
     const data=await response.json();
