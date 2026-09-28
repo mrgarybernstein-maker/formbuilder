@@ -1,4 +1,4 @@
-<!-- Modified September 22, 2026 22:30 -->
+<!-- Modified September 27, 2026 17:39 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -692,7 +692,11 @@ async function publishToGitHub(){
     /* Update repo name in saved form */
     if(currentFormKey){
       const all=getSavedForms();
-      if(all[currentFormKey]){ all[currentFormKey].repoName=repoName; putSavedForms(all); }
+      if(all[currentFormKey]){
+        all[currentFormKey].repoName=repoName;
+        all[currentFormKey].pubDesc=document.getElementById('pub-desc').value.trim();
+        putSavedForms(all);
+      }
     }
     /* Keep repo name and description visible so user knows what was just published */
 
@@ -1141,8 +1145,13 @@ function loadForm(key){
   applyFormState(entry.state);
   /* Pre-fill publish tab from saved form */
   if(entry.repoName) document.getElementById('pub-repo').value = entry.repoName;
-  const title = document.getElementById('form-title').value.trim();
-  if(title) document.getElementById('pub-desc').value = title;
+  if(entry.pubDesc !== undefined){
+    document.getElementById('pub-desc').value = entry.pubDesc;
+  } else {
+    /* Fall back to form title for forms saved before this fix */
+    const title = document.getElementById('form-title').value.trim();
+    if(title) document.getElementById('pub-desc').value = title;
+  }
   document.querySelector('[data-tab="fields"]').click();
 }
 
