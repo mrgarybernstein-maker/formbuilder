@@ -1,4 +1,4 @@
-<!-- Modified September 27, 2026 17:39 -->
+<!-- Modified September 28, 2026 17:18 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1337,6 +1337,10 @@ async function loadFromGitHub(){
       const pubRepo = document.getElementById('pub-repo');
       pubRepo.value = extractedRepo;
     }
+    /* Restore description from form.json if present */
+    if(json.description !== undefined){
+      document.getElementById('pub-desc').value = json.description;
+    }
 
     document.querySelector('[data-tab="fields"]').click();
 
@@ -1718,10 +1722,12 @@ Only include pattern for split. Only include options for radio/checkbox.${instru
 
 /* ── Export ── */
 function buildFormJSON(){
+  const desc=document.getElementById('pub-desc').value.trim();
   return {
     title:document.getElementById('form-title').value,
     subtitle:document.getElementById('form-subtitle').value,
     submitLabel:document.getElementById('form-submit-label').value,
+    description:desc||undefined,
     sheetsURL:document.getElementById('form-sheets-url').value.trim()||undefined,
     fields:fields.map(f=>{ const o={id:f.id,label:f.label,type:f.type,required:f.required!==false}; if(f.pattern) o.pattern=f.pattern; if(f.options) o.options=f.options; if(f.type==='text-display'){ if(f.textContent) o.textContent=f.textContent; if(f.textSize) o.textSize=f.textSize; if(f.textAlign) o.textAlign=f.textAlign; if(f.textStyle) o.textStyle=f.textStyle; } if(f.confirmOf) o.confirmOf=f.confirmOf; return o; }),
     optionSets:{provinces:PROVINCES}
