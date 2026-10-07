@@ -1,4 +1,4 @@
-<!-- Modified October 7, 2026 17:52 -->
+<!-- Modified October 7, 2026 19:42 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -210,16 +210,19 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
         <button onclick="clearImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
       </div>
       <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFileSelect(this)">
-      <div class="form-row" style="flex-direction:column;gap:6px">
-        <label>Or import from a URL / pasted content</label>
+      <div class="form-row" style="flex-direction:column;gap:4px">
+        <label>Or import from a URL</label>
         <div style="display:flex;gap:6px">
           <input type="text" id="ai-url" placeholder="https://docs.google.com/forms/…" style="flex:1">
-          <button class="btn btn-ghost btn-sm" onclick="openFormURL()" title="Open the form in a new tab">🔗 Open</button>
+          <button class="btn btn-ghost btn-sm" onclick="openFormURL()" title="Open form in a new tab">🔗 Open</button>
         </div>
-        <div id="ai-url-hint" style="font-size:12px;color:#666;line-height:1.5">
-          To import from a URL: click <strong>🔗 Open</strong>, go to that tab, press <strong>⌘A</strong> then <strong>⌘C</strong>, then paste into the box below.
-        </div>
-        <textarea id="ai-page-text" rows="3" placeholder="Paste copied page content here (⌘V) — or leave blank if using an image above" style="font-size:12px;resize:vertical" oninput="window._aiPageContent=this.value.trim()"></textarea>
+      </div>
+      <div class="form-row" style="flex-direction:column;gap:4px">
+        <label style="display:flex;align-items:center;gap:6px">
+          Paste form content
+          <span style="font-size:11px;font-weight:400;color:#888">— open the form, ⌘A, ⌘C, then ⌘V here</span>
+        </label>
+        <textarea id="ai-page-text" rows="3" placeholder="Paste here after copying the form page (⌘V)" style="font-size:12px;resize:vertical;border:1.5px dashed #aaa;border-radius:6px;padding:8px" oninput="window._aiPageContent=this.value.trim()"></textarea>
       </div>
       <div class="form-row"><label>Extra instructions (optional)</label><textarea id="ai-instructions" rows="2" placeholder="e.g. All fields required, use Canadian phone format NNN NNN NNNN"></textarea></div>
       <button class="btn btn-blue btn-full" onclick="runAIImport()">✨ Import with Claude</button>
@@ -340,6 +343,7 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
       <select id="f-type" onchange="onTypeChange()">
         <option value="alpha-full">Text — letters only (names)</option>
         <option value="free-full">Text — any characters (notes)</option>
+        <option value="numeric">Number (numeric keyboard)</option>
         <option value="email">Email address (@ keyboard)</option>
         <option value="split">Segmented — driven by a pattern</option>
         <option value="address">Address (number + street + unit)</option>
@@ -429,8 +433,8 @@ const PROVINCES = [
   {value:'YT',label:'YT – Yukon'}
 ];
 
-const TYPE_ICONS  = {'alpha-full':'🔤','free-full':'✏️','email':'📧','split':'🔢','address':'🏠','address-with-postal':'🏠📮','big-address':'🏘️','text-display':'📝','city-province':'🏙️','radio':'🔘','checkbox':'☑️','dropdown':'▾'};
-const TYPE_LABELS = {'alpha-full':'Letters only','free-full':'Free text','email':'Email address','split':'Segmented','address':'Address','address-with-postal':'Address + postal code','big-address':'Full address','text-display':'Display text','city-province':'City + Province','radio':'Radio','checkbox':'Checkboxes','dropdown':'Dropdown'};
+const TYPE_ICONS  = {'alpha-full':'🔤','free-full':'✏️','numeric':'🔢','email':'📧','split':'🔣','address':'🏠','address-with-postal':'🏠📮','big-address':'🏘️','text-display':'📝','city-province':'🏙️','radio':'🔘','checkbox':'☑️','dropdown':'▾'};
+const TYPE_LABELS = {'alpha-full':'Letters only','free-full':'Free text','numeric':'Number','email':'Email address','split':'Segmented','address':'Address','address-with-postal':'Address + postal code','big-address':'Full address','text-display':'Display text','city-province':'City + Province','radio':'Radio','checkbox':'Checkboxes','dropdown':'Dropdown'};
 
 /* ── Tabs ── */
 document.querySelectorAll('.tab').forEach(tab => {
@@ -1392,7 +1396,7 @@ const FIELD_SUGGESTIONS = [
   { keys:['acbl'],                              type:'split',      pattern:'ANNNNNNN' },
   { keys:['masterpoints','master points'],      type:'split',      pattern:'NNNNN' },
   { keys:['age'],                               type:'split',      pattern:'NN' },
-  { keys:['deposit','amount','fee','payment'],  type:'split',      pattern:'NNN.NN' },
+  { keys:['deposit','amount','fee','payment','price','cost','quantity','qty','number of','count','score','weight','height','distance'], type:'numeric', pattern:'' },
   { keys:['email','e-mail'],                    type:'email',      pattern:'' },
   { keys:['first name','given name','prénom'],  type:'alpha-full', pattern:'' },
   { keys:['last name','surname','family name','nom'], type:'alpha-full', pattern:'' },
@@ -1601,7 +1605,7 @@ function refreshPreview() {
       container.appendChild(wrap);
       return;
     }
-    if(f.type==='alpha-full'||f.type==='free-full'||f.type==='email'){
+    if(f.type==='alpha-full'||f.type==='free-full'||f.type==='numeric'||f.type==='email'){
       const inp=document.createElement('div'); inp.className='pv-input'; inp.style.cssText=`border-color:${borderColor};border-radius:${radius}px`; wrap.appendChild(inp);
     } else if(f.type==='split'){
       const row=document.createElement('div'); row.className='pv-seg-row';
@@ -1707,7 +1711,7 @@ async function runAIImport(){
 
   const systemPrompt=`You are a form field extractor. Return ONLY valid JSON, no markdown, no explanation.
 CRITICAL RULE: Extract ONLY the fields that are explicitly present in the provided content. Do NOT invent, guess, or add fields based on what a typical form of this type might include. If you cannot see a field label in the content, do not include it.
-Structure: {"title":"...","subtitle":"...","fields":[{"id":"short-id","label":"...","type":"alpha-full|free-full|email|split|address|address-with-postal|big-address|city-province|radio|checkbox|dropdown|text-display","pattern":"NN-MMM-NNNN","required":true,"options":[{"value":"val","label":"Label","required":true}]}]}
+Structure: {"title":"...","subtitle":"...","fields":[{"id":"short-id","label":"...","type":"alpha-full|free-full|numeric|email|split|address|address-with-postal|big-address|city-province|radio|checkbox|dropdown|text-display","pattern":"NN-MMM-NNNN","required":true,"options":[{"value":"val","label":"Label","required":true}]}]}
 Types: alpha-full=letters only, free-full=any text, email=email address (special keyboard), split=segmented with pattern (N=digit A=letter MMM=month - space .=separators), address=street number+name+unit only, address-with-postal=street+city+province+postal all in one field group, big-address=full address block (street, apt, city, province, postal with Google autocomplete), city-province=city+province dropdown, radio=pick one, checkbox=pick many, dropdown=select list, text-display=non-input heading or instruction text (no label needed, add textContent property).
 IMPORTANT: Use big-address (not address) when a full mailing address is needed. Use address-with-postal for compact address+postal. Type names are case-sensitive and must be exactly as listed above.
 Common patterns: phone=NNN NNN NNNN, date=NN-MMM-NNNN, postal=ANA NAN, SIN=NNN NNN NNN, RAMQ=AAAA NNNNNN NN.
