@@ -1,4 +1,4 @@
-<!-- Modified October 7, 2026 17:39 -->
+<!-- Modified October 7, 2026 17:52 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -211,16 +211,15 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
       </div>
       <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFileSelect(this)">
       <div class="form-row" style="flex-direction:column;gap:6px">
-        <label>Or import from a URL</label>
+        <label>Or import from a URL / pasted content</label>
         <div style="display:flex;gap:6px">
           <input type="text" id="ai-url" placeholder="https://docs.google.com/forms/…" style="flex:1">
-          <button class="btn btn-ghost btn-sm" onclick="openFormURL()" title="Open the form in a new tab, then copy its content back here">🔗 Open</button>
+          <button class="btn btn-ghost btn-sm" onclick="openFormURL()" title="Open the form in a new tab">🔗 Open</button>
         </div>
-        <div id="ai-url-hint" style="font-size:12px;color:#888;display:none">
-          In the new tab: <strong>Ctrl+A</strong> (select all) → <strong>Ctrl+C</strong> (copy) → return here and click <strong>Paste page</strong>.
+        <div id="ai-url-hint" style="font-size:12px;color:#666;line-height:1.5">
+          To import from a URL: click <strong>🔗 Open</strong>, go to that tab, press <strong>⌘A</strong> then <strong>⌘C</strong>, then paste into the box below.
         </div>
-        <button class="btn btn-ghost btn-sm" id="ai-paste-btn" onclick="pastePageContent()" style="display:none">📋 Paste page</button>
-        <div id="ai-page-preview" style="display:none;font-size:11px;color:#4a7;background:#f0fff4;border-radius:6px;padding:6px 8px;margin-top:2px"></div>
+        <textarea id="ai-page-text" rows="3" placeholder="Paste copied page content here (⌘V) — or leave blank if using an image above" style="font-size:12px;resize:vertical" oninput="window._aiPageContent=this.value.trim()"></textarea>
       </div>
       <div class="form-row"><label>Extra instructions (optional)</label><textarea id="ai-instructions" rows="2" placeholder="e.g. All fields required, use Canadian phone format NNN NNN NNNN"></textarea></div>
       <button class="btn btn-blue btn-full" onclick="runAIImport()">✨ Import with Claude</button>
@@ -1685,37 +1684,10 @@ document.addEventListener('paste', e=>{
 
 window._aiPageContent = '';
 
-// Clear pasted content whenever the URL changes
-document.getElementById('ai-url').addEventListener('input', ()=>{
-  window._aiPageContent = '';
-  document.getElementById('ai-page-preview').style.display = 'none';
-  document.getElementById('ai-url-hint').style.display = 'none';
-  document.getElementById('ai-paste-btn').style.display = 'none';
-});
-
 function openFormURL(){
   const url = document.getElementById('ai-url').value.trim();
   if(!url){ alert('Please enter a URL first.'); return; }
   window.open(url, '_blank');
-  document.getElementById('ai-url-hint').style.display = 'block';
-  document.getElementById('ai-paste-btn').style.display = 'block';
-}
-
-async function pastePageContent(){
-  try {
-    const text = await navigator.clipboard.readText();
-    if(!text || text.length < 20){ alert('Nothing useful on the clipboard. Make sure you selected all and copied the page.'); return; }
-    // Strip HTML tags if the user copied rendered HTML source
-    const stripped = text.replace(/<[^>]+>/g,' ').replace(/\s{3,}/g,'\n').trim();
-    window._aiPageContent = stripped;
-    const preview = document.getElementById('ai-page-preview');
-    preview.style.display = 'block';
-    preview.textContent = '✓ ' + stripped.slice(0,120).replace(/\n/g,' ') + '…';
-    document.getElementById('ai-url-hint').style.display = 'none';
-    document.getElementById('ai-paste-btn').style.display = 'none';
-  } catch(e) {
-    alert('Could not read clipboard. Please allow clipboard access when your browser prompts, or paste the page text into the Extra instructions box manually.');
-  }
 }
 
 async function runAIImport(){
@@ -1723,7 +1695,10 @@ async function runAIImport(){
   if(!key||!key.startsWith('sk-ant-')){ alert('Please enter your Anthropic API key in the Settings tab first.'); document.querySelector('[data-tab="settings"]').click(); return; }
   const url=document.getElementById('ai-url').value.trim();
   const instructions=document.getElementById('ai-instructions').value.trim();
-  if(!pendingImageBase64&&!url&&!window._aiPageContent){ alert('Please drop an image, enter a URL, or paste a page first.'); return; }
+  // Sync textarea value to _aiPageContent at import time
+  const pasteBox = document.getElementById('ai-page-text');
+  if(pasteBox && pasteBox.value.trim()) window._aiPageContent = pasteBox.value.trim();
+  if(!pendingImageBase64&&!url&&!window._aiPageContent){ alert('Please drop an image, enter a URL, or paste page content first.'); return; }
 
   const thinkingEl = document.getElementById('ai-thinking');
   const thinkingMsg = document.getElementById('ai-thinking-msg');
