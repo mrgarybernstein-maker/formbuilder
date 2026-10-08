@@ -486,6 +486,14 @@ function buildFullField(def,container,focusChain,optionSets,register,alphaOnly){
   register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);update();}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v) return {el:inp,msg:`${def.label} is required`}; if(alphaOnly&&!/^[a-zA-Z\s'\-]+$/.test(v)) return {el:inp,msg:`${def.label} must contain letters only`}; return null; }, storeKey:'reg_'+def.id, populateFn:v=>{inp.value=v;clearErr(inp);update();} });
 }
 
+function buildNumericField(def,container,focusChain,optionSets,register){
+  const inp=makeInput('seg-full',{ type:'text', inputmode:'decimal', autocorrect:'off', autocomplete:'off', spellcheck:'false', 'aria-label':def.label });
+  const {wrap,update}=makeFloatWrap(inp,def.label);
+  container.appendChild(wrap); focusChain.push(inp);
+  inp.addEventListener('input',()=>{ inp.value=inp.value.replace(/[^0-9.\-]/g,''); clearErr(inp); });
+  register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);update();}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v&&def.required!==false) return {el:inp,msg:`${def.label} is required`}; return null; }, storeKey:'reg_'+def.id });
+}
+
 function buildEmailField(def,container,focusChain,optionSets,register){
   const inp=makeInput('seg-full',{
     type:'email',
@@ -1523,7 +1531,7 @@ async function init(){
   }
 
   const container=document.getElementById('form-fields');
-  const floatingTypes=new Set(['alpha-full','free-full','email','dropdown','city-province']);
+  const floatingTypes=new Set(['alpha-full','free-full','numeric','email','dropdown','city-province']);
 
   (formDef.fields||[]).forEach((def,idx)=>{
     if(idx>0){ const hr=document.createElement('hr'); hr.className='divider'; container.appendChild(hr); }
@@ -1541,6 +1549,7 @@ async function init(){
     switch(def.type){
       case 'alpha-full':    buildFullField(...args,true);    break;
       case 'free-full':     buildFullField(...args,false);   break;
+      case 'numeric':       buildNumericField(...args);      break;
       case 'email':         buildEmailField(...args);        break;
       case 'split':         buildSplitField(...args);        break;
       case 'text-display':       buildTextDisplayField(...args);      break;
