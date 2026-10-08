@@ -1,4 +1,4 @@
-<!-- Modified October 8, 2026 15:47 -->
+<!-- Modified October 8, 2026 16:02 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -481,18 +481,28 @@ function buildFullField(def,container,focusChain,optionSets,register,alphaOnly){
   else if(lbl.includes('organization')||lbl.includes('company')) autoComplete='organization';
   else if(lbl.includes('phone')||lbl.includes('mobile')||lbl.includes('tel')) autoComplete='tel';
   const inp=makeInput('seg-full',{ type:'text', inputmode:'text', autocapitalize:'words', autocorrect:'off', spellcheck:'false', 'aria-label':def.label, autocomplete:autoComplete });
-  const {wrap,update}=makeFloatWrap(inp,def.label);
-  container.appendChild(wrap); focusChain.push(inp);
   inp.addEventListener('input',()=>{ if(alphaOnly) inp.value=inp.value.replace(/[^a-zA-Z\s'\-]/g,''); clearErr(inp); });
-  register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);update();}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v) return {el:inp,msg:`${def.label} is required`}; if(alphaOnly&&!/^[a-zA-Z\s'\-]+$/.test(v)) return {el:inp,msg:`${def.label} must contain letters only`}; return null; }, storeKey:'reg_'+def.id, populateFn:v=>{inp.value=v;clearErr(inp);update();} });
+  if(def._noFloat){
+    container.appendChild(inp); focusChain.push(inp);
+    register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v&&def.required!==false) return {el:inp,msg:`${def.label} is required`}; if(alphaOnly&&!/^[a-zA-Z\s'\-]+$/.test(v)) return {el:inp,msg:`${def.label} must contain letters only`}; return null; }, storeKey:'reg_'+def.id, populateFn:v=>{inp.value=v;clearErr(inp);} });
+  } else {
+    const {wrap,update}=makeFloatWrap(inp,def.label);
+    container.appendChild(wrap); focusChain.push(inp);
+    register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);update();}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v&&def.required!==false) return {el:inp,msg:`${def.label} is required`}; if(alphaOnly&&!/^[a-zA-Z\s'\-]+$/.test(v)) return {el:inp,msg:`${def.label} must contain letters only`}; return null; }, storeKey:'reg_'+def.id, populateFn:v=>{inp.value=v;clearErr(inp);update();} });
+  }
 }
 
 function buildNumericField(def,container,focusChain,optionSets,register){
   const inp=makeInput('seg-full',{ type:'text', inputmode:'decimal', autocorrect:'off', autocomplete:'off', spellcheck:'false', 'aria-label':def.label });
-  const {wrap,update}=makeFloatWrap(inp,def.label);
-  container.appendChild(wrap); focusChain.push(inp);
   inp.addEventListener('input',()=>{ inp.value=inp.value.replace(/[^0-9.\-]/g,''); clearErr(inp); });
-  register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);update();}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v&&def.required!==false) return {el:inp,msg:`${def.label} is required`}; return null; }, storeKey:'reg_'+def.id });
+  if(def._noFloat){
+    container.appendChild(inp); focusChain.push(inp);
+    register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v&&def.required!==false) return {el:inp,msg:`${def.label} is required`}; return null; }, storeKey:'reg_'+def.id });
+  } else {
+    const {wrap,update}=makeFloatWrap(inp,def.label);
+    container.appendChild(wrap); focusChain.push(inp);
+    register(def.id,{ elements:[inp], getValue:()=>inp.value.trim(), setValue:v=>{inp.value=v;clearErr(inp);update();}, clearErrors:()=>clearErr(inp), validate:()=>{ const v=inp.value.trim(); if(!v&&def.required!==false) return {el:inp,msg:`${def.label} is required`}; return null; }, storeKey:'reg_'+def.id });
+  }
 }
 
 function buildEmailField(def,container,focusChain,optionSets,register){
@@ -505,8 +515,14 @@ function buildEmailField(def,container,focusChain,optionSets,register){
     autocomplete: def.confirmOf ? 'off' : (((def.label||'').toLowerCase().includes('confirm')||(def.label||'').toLowerCase().includes('verif')) ? 'off' : 'email'),
     'aria-label':def.label
   });
-  const {wrap,update}=makeFloatWrap(inp,def.label);
-  container.appendChild(wrap); focusChain.push(inp);
+  let _emailUpdate=()=>{};
+  if(def._noFloat){
+    container.appendChild(inp); focusChain.push(inp);
+  } else {
+    const {wrap,update}=makeFloatWrap(inp,def.label);
+    _emailUpdate=update;
+    container.appendChild(wrap); focusChain.push(inp);
+  }
 
   inp.addEventListener('input',()=>{
     clearErr(inp);
@@ -564,7 +580,7 @@ function buildEmailField(def,container,focusChain,optionSets,register){
   register(def.id,{
     elements:[inp],
     getValue:()=>inp.value.trim(),
-    setValue:v=>{inp.value=v;clearErr(inp);update();},
+    setValue:v=>{inp.value=v;clearErr(inp);_emailUpdate();},
     clearErrors:()=>clearErr(inp),
     validate:()=>{
       const v=inp.value.trim();
@@ -1536,17 +1552,20 @@ async function init(){
 
   (formDef.fields||[]).forEach((def,idx)=>{
     if(idx>0){ const hr=document.createElement('hr'); hr.className='divider'; container.appendChild(hr); }
-    const useFloating=floatingTypes.has(def.type);
+    const labelIsLong=(def.label||'').length>40;
+    const useFloating=floatingTypes.has(def.type)&&!labelIsLong;
     const group=document.createElement('div');
     group.className=useFloating?'field-group-float':'field-group';
 
-    /* Label above for non-floating types */
+    /* Label above for non-floating types, or when label is too long to float */
     if(!useFloating){
       const lbl=document.createElement('p'); lbl.className='field-label'; lbl.textContent=def.label;
       group.appendChild(lbl);
     }
 
-    const args=[def,group,focusChain,optionSets,register];
+    /* Pass noFloat flag so build functions skip the floating label when label is long */
+    const defEx=labelIsLong?{...def,_noFloat:true}:def;
+    const args=[defEx,group,focusChain,optionSets,register];
     switch(def.type){
       case 'alpha-full':    buildFullField(...args,true);    break;
       case 'free-full':     buildFullField(...args,false);   break;
