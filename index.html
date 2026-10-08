@@ -1,4 +1,4 @@
-<!-- Modified October 8, 2026 15:42 -->
+<!-- Modified October 8, 2026 15:47 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -54,13 +54,14 @@
       font-size:15px; color:var(--t-label); pointer-events:none;
       transition:top 0.18s ease, font-size 0.18s ease, color 0.18s ease;
       background:transparent; padding:0 2px;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      white-space:normal; overflow:visible; word-break:break-word;
       max-width:calc(100% - 28px);
     }
     .fl-wrap.has-value .fl-label,
     .fl-wrap:focus-within .fl-label {
       top:8px; transform:translateY(0); font-size:11px;
       color:var(--t-field-focus); background:var(--t-card); padding:0 4px; left:10px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .fl-wrap.has-value .fl-label { color:var(--t-label); }
 
@@ -164,7 +165,7 @@
     /* ── Field groups ── */
     .field-group       { margin-bottom:1.25rem; }
     .field-group-float { margin-bottom:1.25rem; }
-    .field-label       { font-size:13px; font-weight:500; color:var(--t-label); margin-bottom:8px; letter-spacing:0.02em; }
+    .field-label       { font-size:13px; font-weight:500; color:var(--t-label); margin-bottom:8px; letter-spacing:0.02em; white-space:normal; overflow:visible; word-break:break-word; }
 
     /* Layout */
     .field-row      { display:flex; align-items:center; gap:6px; }
