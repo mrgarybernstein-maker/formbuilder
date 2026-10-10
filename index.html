@@ -1,4 +1,4 @@
-<!-- Modified October 8, 2026 16:02 -->
+<!-- Modified October 10, 2026 15:33 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1431,11 +1431,11 @@ _style.textContent='@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}t
 document.head.appendChild(_style);
 
 async function init(){
-  try{ const res=await fetch('theme.json'); if(res.ok) applyTheme(await res.json()); }catch(e){}
+  try{ const res=await fetch('theme.json?v='+Date.now()); if(res.ok) applyTheme(await res.json()); }catch(e){}
 
   let formDef;
   try{
-    const res=await fetch('form.json');
+    const res=await fetch('form.json?v='+Date.now());
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     formDef=await res.json();
   }catch(e){
