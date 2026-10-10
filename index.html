@@ -1,4 +1,4 @@
-<!-- Modified October 10, 2026 17:15 -->
+<!-- Modified October 10, 2026 16:00 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1620,11 +1620,28 @@ async function init(){
   const container=document.getElementById('form-fields');
   const floatingTypes=new Set(['alpha-full','free-full','numeric','email','dropdown','city-province']);
 
+  /* ── showIf evaluation ── */
+  function evalConditions(){
+    (formDef.fields||[]).forEach(def=>{
+      if(!def.showIf) return;
+      const fg=document.getElementById('fg-'+def.id);
+      const hr=document.getElementById('fghr-'+def.id);
+      if(!fg) return;
+      const srcReg=fieldRegistry[def.showIf.field];
+      const match=srcReg&&String(srcReg.getValue()).toLowerCase()===String(def.showIf.value).toLowerCase();
+      const vis=match?'':'none';
+      fg.style.display=vis;
+      if(hr) hr.style.display=vis;
+    });
+  }
+
   (formDef.fields||[]).forEach((def,idx)=>{
-    if(idx>0){ const hr=document.createElement('hr'); hr.className='divider'; container.appendChild(hr); }
+    const hr=idx>0?document.createElement('hr'):null;
+    if(hr){ hr.className='divider'; if(def.showIf) hr.id='fghr-'+def.id; container.appendChild(hr); }
     const labelIsLong=(def.label||'').length>40;
     const useFloating=floatingTypes.has(def.type)&&!labelIsLong;
     const group=document.createElement('div');
+    group.id='fg-'+def.id;
     group.className=useFloating?'field-group-float':'field-group';
 
     /* Label above for non-floating types, or when label is too long to float */
@@ -1672,10 +1689,18 @@ async function init(){
 
   function renderAll(){ Object.entries(fieldRegistry).forEach(([id,reg])=>{ if(document.getElementById('chips-'+id)) renderChips('chips-'+id,reg.storeKey,reg.populateFn); }); }
   renderAll();
+  evalConditions();
+
+  /* Re-evaluate conditions whenever any radio, checkbox, dropdown or input changes */
+  container.addEventListener('change', evalConditions);
+  container.addEventListener('input', evalConditions);
+
+  function isHidden(def){ const fg=document.getElementById('fg-'+def.id); return fg&&fg.style.display==='none'; }
 
   function validateAll(){
     for(const def of (formDef.fields||[])){
       if(def.required===false) continue;
+      if(isHidden(def)) continue;
       const reg=fieldRegistry[def.id]; if(!reg) continue;
       const err=reg.validate(); if(err) return err;
     }
@@ -1750,9 +1775,9 @@ async function init(){
       }
       showMsg(err.msg,'err'); return;
     }
-    Object.entries(fieldRegistry).forEach(([id,reg])=>{ const v=reg.getValue(); if(v&&v.replace(/[\|\s\-,]/g,'')) addToHistory(reg.storeKey,v); });
+    Object.entries(fieldRegistry).forEach(([id,reg])=>{ const def=(formDef.fields||[]).find(f=>f.id===id); if(def&&isHidden(def)) return; const v=reg.getValue(); if(v&&v.replace(/[\|\s\-,]/g,'')) addToHistory(reg.storeKey,v); });
     renderAll();
-    const parts=(formDef.fields||[]).map(def=>{ const reg=fieldRegistry[def.id]; if(!reg) return null; return(reg.displayValue?reg.displayValue():reg.getValue())||null; }).filter(Boolean);
+    const parts=(formDef.fields||[]).map(def=>{ if(isHidden(def)) return null; const reg=fieldRegistry[def.id]; if(!reg) return null; return(reg.displayValue?reg.displayValue():reg.getValue())||null; }).filter(Boolean);
     showMsg('Saved: '+parts.join(' · '),'ok');
 
     /* Send to Google Sheets if sheetsURL configured in form.json */
@@ -1762,6 +1787,7 @@ async function init(){
       (formDef.fields||[]).forEach(def=>{
         const reg=fieldRegistry[def.id]; if(!reg) return;
         if(def.type==='text-display') return;
+        if(isHidden(def)) return;
         const val=(reg.displayValue?reg.displayValue():reg.getValue())||'';
         if(val) submissionData[def.label||def.id]=val;
       });
