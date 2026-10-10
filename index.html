@@ -1,4 +1,4 @@
-<!-- Modified October 10, 2026 16:00 -->
+<!-- Modified October 10, 2026 17:57 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1331,6 +1331,7 @@ function buildRadioField(def,container,focusChain,optionSets,register){
       optEls.forEach(({row:r})=>r.classList.remove('selected','error'));
       row.classList.add('selected');
       clearMsg();
+      container.dispatchEvent(new Event('change',{bubbles:true}));
     });
     optEls.push({row,value:opt.value});
     group.appendChild(row);
@@ -1375,6 +1376,7 @@ function buildCheckboxField(def,container,focusChain,optionSets,register){
       row.classList.toggle('checked',checks[opt.value].checked);
       row.classList.remove('error');
       clearMsg();
+      container.dispatchEvent(new Event('change',{bubbles:true}));
     });
     group.appendChild(row);
   });
