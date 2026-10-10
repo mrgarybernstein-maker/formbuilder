@@ -1,4 +1,4 @@
-<!-- Modified October 10, 2026 15:33 -->
+<!-- Modified October 10, 2026 17:15 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -469,6 +469,76 @@ function buildSplitField(def,container,focusChain,optionSets,register){
     return null;
   }
   register(def.id,{ elements:inputs.map(({el})=>el), getValue, setValue, clearErrors:()=>inputs.forEach(({el})=>clearErr(el)), validate, storeKey:'reg_'+def.id, populateFn:setValue });
+}
+
+function buildDateRangeField(def,container,focusChain,optionSets,register){
+  /* Renders two NN-MMM-NNNN segmented date inputs stacked: From / To */
+  const PATTERN='NN-MMM-NNNN';
+  function makeDateRow(subLabel,idSuffix){
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;flex-direction:column;gap:4px;';
+    const lbl=document.createElement('p');
+    lbl.className='field-label';
+    lbl.style.cssText='font-size:12px;color:var(--t-label);margin-bottom:2px;';
+    lbl.textContent=subLabel;
+    wrap.appendChild(lbl);
+    const subDef={...def, id:def.id+idSuffix, label:subLabel, pattern:PATTERN, _noFloat:true};
+    /* Build a mini split field into this wrap */
+    const row=document.createElement('div'); row.className='field-row';
+    const tokens=parsePattern(PATTERN);
+    const inputs=[];
+    tokens.forEach(tok=>{
+      if(tok.kind==='sep'){ const s=document.createElement('span'); s.className=(tok.char==='-'||tok.char==='.')?'sep':'sep-space'; if(tok.char==='-'||tok.char==='.') s.textContent=tok.char; row.appendChild(s); return; }
+      const inp=makeInput('seg',{ type:'text', inputmode:tok.isNum?'numeric':'text', maxlength:tok.chars, placeholder:tok.placeholder, autocomplete:'off', autocorrect:'off', spellcheck:'false', style:`width:${tok.width}px;${(tok.isAlpha||tok.isMonth)?'text-transform:uppercase;':''}` });
+      if(tok.isAlpha||tok.isMonth) inp.setAttribute('autocapitalize','characters');
+      inputs.push({el:inp,tok}); row.appendChild(inp);
+    });
+    wrap.appendChild(row);
+    inputs.forEach(({el,tok},idx)=>{
+      const nextEl=inputs[idx+1]?.el||null; const prevEl=inputs[idx-1]?.el||null;
+      el.addEventListener('input',()=>{ let v=el.value; if((tok.isAlpha||tok.isMonth)&&!tok.isNum) v=v.replace(/[^a-zA-Z]/g,'').toUpperCase(); if(tok.isNum&&!tok.isAlpha) v=v.replace(/\D/g,''); el.value=v; clearErr(el); if(v.length===tok.chars&&nextEl) nextEl.focus(); });
+      el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&el.value===''&&prevEl){e.preventDefault();prevEl.focus();} });
+      if(tok.isMonth){
+        el.addEventListener('blur',()=>{ const v=el.value.toUpperCase(); if(v.length===3&&!MONTHS.includes(v)){el.classList.add('error');showMsg('Invalid month — use JAN, FEB … DEC','err');} });
+        el.addEventListener('focus',()=>{ clearErr(el); clearMsg(); });
+      }
+      focusChain.push(el);
+    });
+    function getVal(){ let out='',si=0; tokens.forEach(tok=>{ if(tok.kind==='sep'){out+=tok.char;}else{out+=(inputs[si++]?.el.value||'');} }); return out; }
+    function setVal(val){ const clean=val.replace(/[\s\-\.]/g,''); let pos=0; inputs.forEach(({el,tok})=>{ el.value=clean.slice(pos,pos+tok.chars); clearErr(el); pos+=tok.chars; }); }
+    function validateDate(label){
+      for(let i=0;i<inputs.length;i++){
+        const {el,tok}=inputs[i]; const v=el.value.toUpperCase();
+        if(tok.isMonth){ if(!/^[A-Z]{3}$/.test(v)) return {el,msg:`${label}: month must be 3 letters (e.g. JAN)`}; if(!MONTHS.includes(v)) return {el,msg:`${label}: invalid month`}; }
+        else if(tok.isNum){ if(v.length!==tok.chars||!/^\d+$/.test(v)) return {el,msg:`${label}: ${tok.chars} digit${tok.chars>1?'s':''} required here`}; }
+      }
+      return null;
+    }
+    return {wrap, getVal, setVal, validateDate, inputs};
+  }
+
+  const fromRow=makeDateRow('From','__from');
+  const toRow=makeDateRow('To','__to');
+
+  const outerWrap=document.createElement('div');
+  outerWrap.style.cssText='display:flex;flex-direction:column;gap:10px;';
+  outerWrap.appendChild(fromRow.wrap);
+  outerWrap.appendChild(toRow.wrap);
+  container.appendChild(outerWrap);
+
+  register(def.id,{
+    elements:[...fromRow.inputs.map(({el})=>el),...toRow.inputs.map(({el})=>el)],
+    getValue:()=>{ const f=fromRow.getVal(); const t=toRow.getVal(); if(!f.replace(/[-]/g,'').trim()&&!t.replace(/[-]/g,'').trim()) return ''; return f+' to '+t; },
+    setValue:v=>{ if(!v) return; const parts=v.split(' to '); fromRow.setVal(parts[0]||''); toRow.setVal(parts[1]||''); },
+    clearErrors:()=>{ [...fromRow.inputs,...toRow.inputs].forEach(({el})=>clearErr(el)); },
+    validate:()=>{
+      if(def.required===false){ const f=fromRow.getVal().replace(/[-]/g,'').trim(); const t=toRow.getVal().replace(/[-]/g,'').trim(); if(!f&&!t) return null; }
+      const fe=fromRow.validateDate(def.label+' (From)'); if(fe) return fe;
+      const te=toRow.validateDate(def.label+' (To)'); if(te) return te;
+      return null;
+    },
+    storeKey:'reg_'+def.id
+  });
 }
 
 function buildFullField(def,container,focusChain,optionSets,register,alphaOnly){
@@ -1572,6 +1642,7 @@ async function init(){
       case 'numeric':       buildNumericField(...args);      break;
       case 'email':         buildEmailField(...args);        break;
       case 'split':         buildSplitField(...args);        break;
+      case 'date-range':    buildDateRangeField(...args);    break;
       case 'text-display':       buildTextDisplayField(...args);      break;
       case 'address':            buildAddressAutoField(...args);      break;
       case 'address-with-postal':  buildAddressWithPostalField(...args); break;
