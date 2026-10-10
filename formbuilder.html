@@ -1,4 +1,4 @@
-<!-- Modified October 10, 2026 17:15 -->
+<!-- Modified October 10, 2026 16:00 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -408,6 +408,22 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
         <input type="checkbox" id="f-required" checked style="width:auto">
         Required field
       </label>
+    </div>
+    <div class="form-row" style="margin-top:4px" id="f-showif-section">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px">
+        <input type="checkbox" id="f-showif-enabled" style="width:auto" onchange="onShowIfToggle()">
+        Show only if another field equals a value
+      </label>
+      <div id="f-showif-controls" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label>Field</label>
+          <select id="f-showif-field"></select>
+        </div>
+        <div>
+          <label>Value</label>
+          <input type="text" id="f-showif-value" placeholder="e.g. Yes">
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -1469,8 +1485,27 @@ function openAddField() {
   document.getElementById('f-required').checked=true;
   document.getElementById('f-options-list').innerHTML='';
   onTypeChange();
+  populateShowIfField(null);
+  document.getElementById('f-showif-enabled').checked=false;
+  document.getElementById('f-showif-controls').style.display='none';
+  document.getElementById('f-showif-value').value='';
   document.getElementById('field-modal').classList.add('open');
   setTimeout(()=>document.getElementById('f-label').focus(),50);
+}
+function populateShowIfField(excludeIdx){
+  /* Fill the "Field" dropdown with eligible triggering fields (radio, checkbox, dropdown) */
+  const sel=document.getElementById('f-showif-field');
+  sel.innerHTML='<option value="">— pick a field —</option>';
+  fields.forEach((f,i)=>{
+    if(i===excludeIdx) return;
+    if(f.type==='radio'||f.type==='checkbox'||f.type==='dropdown'){
+      const opt=document.createElement('option'); opt.value=f.id; opt.textContent=f.label; sel.appendChild(opt);
+    }
+  });
+}
+function onShowIfToggle(){
+  const on=document.getElementById('f-showif-enabled').checked;
+  document.getElementById('f-showif-controls').style.display=on?'grid':'none';
 }
 function openEditField(idx) {
   editingIdx=idx; const f=fields[idx];
@@ -1488,6 +1523,12 @@ function openEditField(idx) {
     document.getElementById('f-text-align').value=f.textAlign||'left';
     document.getElementById('f-text-style').value=f.textStyle||'normal';
   }
+  populateShowIfField(idx);
+  const hasShowIf=!!(f.showIf&&f.showIf.field);
+  document.getElementById('f-showif-enabled').checked=hasShowIf;
+  document.getElementById('f-showif-controls').style.display=hasShowIf?'grid':'none';
+  if(hasShowIf){ document.getElementById('f-showif-field').value=f.showIf.field; document.getElementById('f-showif-value').value=f.showIf.value||''; }
+  else { document.getElementById('f-showif-value').value=''; }
   document.getElementById('field-modal').classList.add('open');
 }
 function closeModal() { document.getElementById('field-modal').classList.remove('open'); }
@@ -1542,6 +1583,12 @@ function saveField() {
     });
     if(!field.options.length){alert('Please add at least one option');return;}
   }
+  /* showIf */
+  const showIfEnabled=document.getElementById('f-showif-enabled').checked;
+  const showIfField=document.getElementById('f-showif-field').value;
+  const showIfValue=document.getElementById('f-showif-value').value.trim();
+  if(showIfEnabled&&showIfField&&showIfValue) field.showIf={field:showIfField,value:showIfValue};
+
   if(editingIdx!==null) fields[editingIdx]=field; else fields.push(field);
   closeModal(); renderFieldList(); refreshPreview();
 }
@@ -1588,6 +1635,8 @@ function refreshPreview() {
   fields.forEach((f,idx)=>{
     if(idx>0){ const hr=document.createElement('hr'); hr.style.cssText='border:none;border-top:1px solid #f0f0f0;margin:0.5rem 0 1rem'; container.appendChild(hr); }
     const wrap=document.createElement('div'); wrap.className='pv-field';
+    /* Dim conditional fields in preview */
+    if(f.showIf&&f.showIf.field){ wrap.style.cssText='opacity:0.45;pointer-events:none;position:relative'; const badge=document.createElement('div'); badge.style.cssText='font-size:10px;background:#f0f0f0;color:#888;border-radius:4px;padding:2px 6px;display:inline-block;margin-bottom:4px'; const srcF=fields.find(ff=>ff.id===f.showIf.field); badge.textContent='Shows if "'+((srcF&&srcF.label)||f.showIf.field)+'" = '+f.showIf.value; wrap.appendChild(badge); }
     if(f.type!=='text-display'){
       const lbl=document.createElement('div'); lbl.className='pv-label'; lbl.textContent=f.label; lbl.style.color=labelColor;
       wrap.appendChild(lbl);
@@ -1727,10 +1776,11 @@ async function runAIImport(){
 
   const systemPrompt=`You are a form field extractor. Return ONLY valid JSON, no markdown, no explanation.
 CRITICAL RULE: Extract ONLY the fields that are explicitly present in the provided content. Do NOT invent, guess, or add fields based on what a typical form of this type might include. If you cannot see a field label in the content, do not include it.
-Structure: {"title":"...","subtitle":"...","fields":[{"id":"short-id","label":"...","type":"alpha-full|free-full|numeric|email|split|date-range|address|address-with-postal|big-address|city-province|radio|checkbox|dropdown|text-display","pattern":"NN-MMM-NNNN","required":true,"options":[{"value":"val","label":"Label","required":true}]}]}
+Structure: {"title":"...","subtitle":"...","fields":[{"id":"short-id","label":"...","type":"alpha-full|free-full|numeric|email|split|date-range|address|address-with-postal|big-address|city-province|radio|checkbox|dropdown|text-display","pattern":"NN-MMM-NNNN","required":true,"options":[{"value":"val","label":"Label","required":true}],"showIf":{"field":"other-field-id","value":"option-value"}}]}
 Types: alpha-full=letters only, free-full=any text, email=email address (special keyboard), split=segmented with pattern (N=digit A=letter MMM=month - space .=separators), date-range=two date pickers (From and To) for a date range or travel period, address=street number+name+unit only, address-with-postal=street+city+province+postal all in one field group, big-address=full address block (street, apt, city, province, postal with Google autocomplete), city-province=city+province dropdown, radio=pick one, checkbox=pick many, dropdown=select list, text-display=non-input heading or instruction text (no label needed, add textContent property).
 IMPORTANT: Use big-address (not address) when a full mailing address is needed. Use address-with-postal for compact address+postal. Type names are case-sensitive and must be exactly as listed above.
 Common patterns: phone=NNN NNN NNNN, date=NN-MMM-NNNN, postal=ANA NAN, SIN=NNN NNN NNN, RAMQ=AAAA NNNNNN NN. Use type=date-range (no pattern needed) when a form asks for a date range, travel period, stay dates, or both a start date and end date.
+CONDITIONAL FIELDS: If a field should only appear when another field has a specific value (e.g. a date range that appears only when "Are you travelling?" is "Yes"), add a "showIf" property: {"showIf":{"field":"<id-of-controlling-field>","value":"<exact option value>"}}. Only radio, checkbox and dropdown fields can be controlling fields. The value must match the option's value exactly (which is the label lowercased with spaces as hyphens, e.g. "Yes" → "yes").
 IMPORTANT: Always use type=email for any email field. Always use type=split with pattern NNN NNN NNNN for any phone/mobile/telephone field. Always use type=split with pattern NN-MMM-NNNN for any date of birth field. Always use type=split with pattern NN for any age field. If there are two consecutive email fields where the second appears to be a confirmation, set the second field's id to end with '-confirm' and add a 'confirmOf' property set to the first email field's id.
 Only include pattern for split. Only include options for radio/checkbox/dropdown.${instructions?'\nExtra: '+instructions:''}`;
 
