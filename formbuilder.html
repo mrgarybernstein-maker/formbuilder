@@ -1830,7 +1830,7 @@ function buildFormJSON(){
     submitLabel:document.getElementById('form-submit-label').value,
     description:desc||undefined,
     sheetsURL:document.getElementById('form-sheets-url').value.trim()||undefined,
-    fields:fields.map(f=>{ const o={id:f.id,label:f.label,type:f.type,required:f.required!==false}; if(f.pattern) o.pattern=f.pattern; if(f.options) o.options=f.options; if(f.type==='text-display'){ if(f.textContent) o.textContent=f.textContent; if(f.textSize) o.textSize=f.textSize; if(f.textAlign) o.textAlign=f.textAlign; if(f.textStyle) o.textStyle=f.textStyle; } if(f.confirmOf) o.confirmOf=f.confirmOf; return o; }),
+    fields:fields.map(f=>{ const o={id:f.id,label:f.label,type:f.type,required:f.required!==false}; if(f.pattern) o.pattern=f.pattern; if(f.options) o.options=f.options; if(f.type==='text-display'){ if(f.textContent) o.textContent=f.textContent; if(f.textSize) o.textSize=f.textSize; if(f.textAlign) o.textAlign=f.textAlign; if(f.textStyle) o.textStyle=f.textStyle; } if(f.confirmOf) o.confirmOf=f.confirmOf; if(f.showIf) o.showIf=f.showIf; return o; }),
     optionSets:{provinces:PROVINCES}
   };
 }
