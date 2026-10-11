@@ -1,4 +1,4 @@
-<!-- Modified October 10, 2026 17:57 -->
+<!-- Modified October 11, 2026 17:55 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1639,12 +1639,14 @@ async function init(){
 
   (formDef.fields||[]).forEach((def,idx)=>{
     const hr=idx>0?document.createElement('hr'):null;
-    if(hr){ hr.className='divider'; if(def.showIf) hr.id='fghr-'+def.id; container.appendChild(hr); }
+    if(hr){ hr.className='divider'; if(def.showIf){ hr.id='fghr-'+def.id; hr.style.display='none'; } container.appendChild(hr); }
     const labelIsLong=(def.label||'').length>40;
     const useFloating=floatingTypes.has(def.type)&&!labelIsLong;
     const group=document.createElement('div');
     group.id='fg-'+def.id;
     group.className=useFloating?'field-group-float':'field-group';
+    /* Hide conditional fields immediately so they never flash visible */
+    if(def.showIf) group.style.display='none';
 
     /* Label above for non-floating types, or when label is too long to float */
     if(!useFloating){
