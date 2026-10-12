@@ -1,4 +1,4 @@
-<!-- Modified October 10, 2026 16:07 -->
+<!-- Modified October 12, 2026 18:06 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -625,9 +625,10 @@ async function publishToGitHub(){
     if(repoExists){
       stepSet('ps-create','done','Repository exists — updating files ✓');
     } else {
-      stepSet('ps-create','active',`Creating repository…`);
-      await ghAPI('/user/repos','POST',{name:repoName,description:desc,private:isPrivate,auto_init:false});
-      stepSet('ps-create','done','Repository created ✓');
+      stepSet('ps-create','active',`Creating repository "${repoName}"…`);
+      const createResult=await ghAPI('/user/repos','POST',{name:repoName,description:desc,private:isPrivate,auto_init:false});
+      if(!createResult||!createResult.full_name) throw new Error(`Repository creation failed — GitHub did not confirm the new repo. Check your token permissions.`);
+      stepSet('ps-create','done',`Repository "${repoName}" created ✓`);
     }
 
     // Step 2: upload all files in one git commit
@@ -701,16 +702,23 @@ async function publishToGitHub(){
     }
 
     // Step 4: Wait for deployment
-    stepSet('ps-live','active','Waiting for deployment (up to 60s)…');
+    stepSet('ps-live','active','Waiting for GitHub Pages deployment (up to 90s)…');
     const liveURL=`https://${actualUsername}.github.io/${repoName}/`;
+    /* Poll the Pages API until status is "built" or timeout */
     let attempts=0;
-    while(attempts<12){
+    let pagesBuilt=false;
+    while(attempts<18){
       await new Promise(r=>setTimeout(r,5000));
       attempts++;
-      stepSet('ps-live','active',`Checking… (${attempts*5}s)`);
-      try{ await fetch(liveURL,{method:'HEAD',mode:'no-cors'}); break; }catch(e){ if(attempts===12) break; }
+      stepSet('ps-live','active',`Waiting for deployment… (${attempts*5}s)`);
+      try{
+        const pagesInfo=await ghAPI(`/repos/${actualUsername}/${repoName}/pages`,'GET');
+        if(pagesInfo&&(pagesInfo.status==='built'||pagesInfo.status==='deploying')){
+          pagesBuilt=true; break;
+        }
+      }catch(e){ /* Pages API not ready yet — keep waiting */ }
     }
-    stepSet('ps-live','done','Form is live! ✓');
+    stepSet('ps-live','done', pagesBuilt ? 'Form is live! ✓' : 'Deployment in progress — your URL will be ready in under a minute ✓');
 
     const urlResult=document.getElementById('pub-url-result');
     const urlLink=document.getElementById('pub-url-link');
@@ -1809,11 +1817,14 @@ Only include pattern for split. Only include options for radio/checkbox/dropdown
     const data=await response.json();
     const text=data.content.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
     const parsed=JSON.parse(text);
-    if(parsed.title)    document.getElementById('form-title').value=parsed.title;
-    if(parsed.subtitle) document.getElementById('form-subtitle').value=parsed.subtitle;
-    if(parsed.fields)   fields=parsed.fields;
+    /* Always overwrite title/subtitle so a stale previous form's title never carries over */
+    document.getElementById('form-title').value=parsed.title||'';
+    document.getElementById('form-subtitle').value=parsed.subtitle||'';
+    if(parsed.fields) fields=parsed.fields;
     renderFieldList(); refreshPreview();
     document.querySelector('[data-tab="fields"]').click();
+    /* Warn if no title was detected so the user knows to fill it in */
+    if(!parsed.title) setTimeout(()=>{ const el=document.getElementById('form-title'); el.style.outline='2px solid #e05252'; el.focus(); el.placeholder='Enter form title'; },300);
   } catch(e){
     alert('Import failed: '+e.message);
   } finally {
