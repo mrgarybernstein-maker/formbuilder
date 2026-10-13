@@ -1,4 +1,4 @@
-<!-- Modified October 12, 2026 18:06 -->
+<!-- Modified October 12, 2026 20:47 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -313,9 +313,10 @@ input[type=color]{width:100%;height:38px;border:1.5px solid #e0e0e0;border-radiu
       <div class="form-row"><label>GitHub Username</label><input type="text" id="gh-username-input" placeholder="yourusername" oninput="saveGHUsername()"></div>
       <div id="gh-token-status" class="hint"></div>
       <div style="margin-top:12px;display:flex;gap:8px">
-        <button class="btn btn-green btn-sm" onclick="saveConfigToGitHub()" style="flex:1">☁️ Save credentials to GitHub</button>
+        <button class="btn btn-green btn-sm" onclick="saveConfigToGitHub()" style="flex:1">☁️ Save GitHub credentials</button>
         <button class="btn btn-ghost btn-sm" onclick="loadConfigFromGitHub()" style="flex:1">🔄 Restore from GitHub</button>
       </div>
+      <p class="hint" style="margin-top:6px">GitHub token and username are saved to your formbuilder repo. Your Anthropic API key is <strong>never</strong> saved to GitHub — enter it once per device.</p>
       <div id="config-status" class="hint" style="margin-top:6px"></div>
     </div>
 
@@ -894,20 +895,18 @@ function restoreBackup(input){
 async function saveConfigToGitHub(){
   const token    = localStorage.getItem('fb_gh_token')||sessionStorage.getItem('fb_gh_token')||getCookie('fb_gh_token')||'';
   const username = localStorage.getItem('fb_gh_username')||sessionStorage.getItem('fb_gh_username')||getCookie('fb_gh_username')||'';
-  const apiKey   = localStorage.getItem('fb_api_key')||sessionStorage.getItem('fb_api_key')||getCookie('fb_api_key')||'';
   const statusEl = document.getElementById('config-status');
 
   if(!token||!username){ alert('Please enter your GitHub token and username first.'); return; }
 
   statusEl.textContent = 'Saving to GitHub…';
 
-  /* Encode tokens to avoid GitHub secret scanning */
+  /* Encode GitHub token only — Anthropic API key is never stored in GitHub (avoids secret scanning alerts) */
   const encode = s => btoa(s.split('').reverse().join(''));
-  const config = { 
-    t: encode(token), 
-    u: username, 
-    k: encode(apiKey),
-    _note: 'FormBuilder credentials - encoded'
+  const config = {
+    t: encode(token),
+    u: username,
+    _note: 'FormBuilder GitHub credentials - encoded. Anthropic API key is stored in browser only.'
   };
   const b64 = str => btoa(unescape(encodeURIComponent(str)));
 
@@ -970,38 +969,26 @@ async function loadConfigFromGitHub(){
     
     const config = await r.json();
 
-    /* Decode tokens */
+    /* Decode GitHub credentials only — Anthropic API key is never in config.json */
     const decode = s => { try{ return atob(s).split('').reverse().join(''); }catch(e){ return s; }};
-    if(config.t){ config.gh_token = decode(config.t); }
-    if(config.k){ config.api_key = decode(config.k); }
-    if(config.u){ config.gh_username = config.u; }
-    const decode2 = s => { try{ return atob(s).split('').reverse().join(''); }catch(e){ return s; }};
-    if(config.t) config.gh_token = decode2(config.t);
-    if(config.k) config.api_key  = decode2(config.k);
-    if(config.u) config.gh_username = config.u;
-    if(config.gh_token){
-      localStorage.setItem('fb_gh_token', config.gh_token);
-      sessionStorage.setItem('fb_gh_token', config.gh_token);
-      setCookie('fb_gh_token', config.gh_token);
-      document.getElementById('gh-token-input').value = config.gh_token;
+    const gh_token    = config.t ? decode(config.t) : config.gh_token||'';
+    const gh_username = config.u || config.gh_username || '';
+    if(gh_token){
+      localStorage.setItem('fb_gh_token', gh_token);
+      sessionStorage.setItem('fb_gh_token', gh_token);
+      setCookie('fb_gh_token', gh_token);
+      document.getElementById('gh-token-input').value = gh_token;
       document.getElementById('gh-token-status').textContent = 'Token saved in browser.';
     }
-    if(config.gh_username){
-      localStorage.setItem('fb_gh_username', config.gh_username);
-      sessionStorage.setItem('fb_gh_username', config.gh_username);
-      setCookie('fb_gh_username', config.gh_username);
-      document.getElementById('gh-username-input').value = config.gh_username;
-    }
-    if(config.api_key){
-      localStorage.setItem('fb_api_key', config.api_key);
-      sessionStorage.setItem('fb_api_key', config.api_key);
-      setCookie('fb_api_key', config.api_key);
-      document.getElementById('api-key-input').value = config.api_key;
-      updateAPIBadge(config.api_key);
+    if(gh_username){
+      localStorage.setItem('fb_gh_username', gh_username);
+      sessionStorage.setItem('fb_gh_username', gh_username);
+      setCookie('fb_gh_username', gh_username);
+      document.getElementById('gh-username-input').value = gh_username;
     }
 
     updateAuthCheck();
-    statusEl.textContent = '✓ Credentials restored from GitHub';
+    statusEl.textContent = '✓ GitHub credentials restored. Enter your Anthropic API key separately (it is stored in browser only).';
     statusEl.style.color = '#2a9a5a';
 
   } catch(e) {
@@ -1025,36 +1012,24 @@ async function autoLoadConfig(){
     const r = await fetch(`https://raw.githubusercontent.com/${username}/formbuilder/main/config.json`);
     if(!r.ok) return;
     const config = await r.json();
-    /* Decode tokens */
+    /* Decode GitHub credentials only — Anthropic API key is never stored in config.json */
     const decode = s => { try{ return atob(s).split('').reverse().join(''); }catch(e){ return s; }};
-    if(config.t){ config.gh_token = decode(config.t); }
-    if(config.k){ config.api_key = decode(config.k); }
-    if(config.u){ config.gh_username = config.u; }
-    const decode2 = s => { try{ return atob(s).split('').reverse().join(''); }catch(e){ return s; }};
-    if(config.t) config.gh_token = decode2(config.t);
-    if(config.k) config.api_key  = decode2(config.k);
-    if(config.u) config.gh_username = config.u;
-    if(config.gh_token){
-      localStorage.setItem('fb_gh_token', config.gh_token);
-      sessionStorage.setItem('fb_gh_token', config.gh_token);
-      setCookie('fb_gh_token', config.gh_token);
-      document.getElementById('gh-token-input').value = config.gh_token;
+    const gh_token    = config.t ? decode(config.t) : config.gh_token||'';
+    const gh_username = config.u || config.gh_username || '';
+    if(gh_token){
+      localStorage.setItem('fb_gh_token', gh_token);
+      sessionStorage.setItem('fb_gh_token', gh_token);
+      setCookie('fb_gh_token', gh_token);
+      document.getElementById('gh-token-input').value = gh_token;
     }
-    if(config.gh_username){
-      localStorage.setItem('fb_gh_username', config.gh_username);
-      sessionStorage.setItem('fb_gh_username', config.gh_username);
-      setCookie('fb_gh_username', config.gh_username);
-      document.getElementById('gh-username-input').value = config.gh_username;
-    }
-    if(config.api_key){
-      localStorage.setItem('fb_api_key', config.api_key);
-      sessionStorage.setItem('fb_api_key', config.api_key);
-      setCookie('fb_api_key', config.api_key);
-      document.getElementById('api-key-input').value = config.api_key;
-      updateAPIBadge(config.api_key);
+    if(gh_username){
+      localStorage.setItem('fb_gh_username', gh_username);
+      sessionStorage.setItem('fb_gh_username', gh_username);
+      setCookie('fb_gh_username', gh_username);
+      document.getElementById('gh-username-input').value = gh_username;
     }
     updateAuthCheck();
-    console.log('Credentials auto-restored from config.json');
+    console.log('GitHub credentials auto-restored from config.json');
   } catch(e) { /* silent fail */ }
 }
 
